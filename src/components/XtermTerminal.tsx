@@ -74,29 +74,15 @@ export function XtermTerminal({ tabId, isActive }: Props) {
     };
   }, [tabId]);
 
-  const hasFitted = useRef(false);
-
-  useEffect(() => {
-    if (isActive) {
-      if (!hasFitted.current) {
-        requestAnimationFrame(() => {
-          useTerminalStore.getState().fit(tabId);
-          hasFitted.current = true;
-        });
-      }
-    } else {
-      hasFitted.current = false;
-    }
-  }, [isActive, tabId]);
 
   return (
     <div
       ref={containerRef}
-      style={{ 
-        display: isActive ? 'flex' : 'none', 
-        height: '100%', 
+      style={{
+        display: 'flex',
+        height: '100%',
         width: '100%',
-        padding: '1rem',
+        padding: '4px',
         boxSizing: 'border-box'
       }}
     />
