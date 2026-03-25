@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { openPath } from '@tauri-apps/plugin-opener';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File } from 'lucide-react';
 import { FileNode } from '../types';
+import { FileViewerModal } from './FileViewerModal';
 
 interface Props {
   projectId: string;
@@ -11,9 +11,10 @@ interface Props {
 interface TreeNodeProps {
   node: FileNode;
   depth: number;
+  onOpenFile: (path: string) => void;
 }
 
-function TreeNode({ node, depth }: TreeNodeProps) {
+function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
   const [open, setOpen] = useState(depth === 0);
 
   if (!node.is_dir) {
@@ -21,7 +22,7 @@ function TreeNode({ node, depth }: TreeNodeProps) {
       <div
         className="flex items-center gap-1 py-0.5 hover:bg-[#2a2a2a] cursor-pointer rounded"
         style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
-        onClick={() => openPath(node.path)}
+        onClick={() => onOpenFile(node.path)}
       >
         <File size={12} className="text-[#666] shrink-0" />
         <span className="text-xs text-[#b0b0b0] truncate">{node.name}</span>
@@ -49,7 +50,7 @@ function TreeNode({ node, depth }: TreeNodeProps) {
         <span className="text-xs text-[#ccc] truncate">{node.name}</span>
       </div>
       {open && node.children.map((child) => (
-        <TreeNode key={child.path} node={child} depth={depth + 1} />
+        <TreeNode key={child.path} node={child} depth={depth + 1} onOpenFile={onOpenFile} />
       ))}
     </div>
   );
@@ -59,6 +60,7 @@ export function FileTreePanel({ projectId }: Props) {
   const [tree, setTree] = useState<FileNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openFilePath, setOpenFilePath] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -70,25 +72,33 @@ export function FileTreePanel({ projectId }: Props) {
   }, [projectId]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b border-[#3a3a3a]">
-        <span className="text-xs font-medium text-[#888]">File Tree</span>
+    <>
+      <div className="flex flex-col h-full">
+        <div className="px-3 py-2 border-b border-[#3a3a3a]">
+          <span className="text-xs font-medium text-[#888]">File Tree</span>
+        </div>
+        <div className="flex-1 overflow-auto py-1">
+          {loading && (
+            <div className="px-3 py-4 text-xs text-[#555]">Loading...</div>
+          )}
+          {error && (
+            <div className="px-3 py-4 text-xs text-[#f87171]">{error}</div>
+          )}
+          {!loading && !error && tree !== null && (
+            tree.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-[#555]">Empty directory</div>
+            ) : (
+              tree.map((node) => (
+                <TreeNode key={node.path} node={node} depth={0} onOpenFile={setOpenFilePath} />
+              ))
+            )
+          )}
+        </div>
       </div>
-      <div className="flex-1 overflow-auto py-1">
-        {loading && (
-          <div className="px-3 py-4 text-xs text-[#555]">Loading...</div>
-        )}
-        {error && (
-          <div className="px-3 py-4 text-xs text-[#f87171]">{error}</div>
-        )}
-        {!loading && !error && tree !== null && (
-          tree.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-[#555]">Empty directory</div>
-          ) : (
-            tree.map((node) => <TreeNode key={node.path} node={node} depth={0} />)
-          )
-        )}
-      </div>
-    </div>
+
+      {openFilePath && (
+        <FileViewerModal path={openFilePath} onClose={() => setOpenFilePath(null)} />
+      )}
+    </>
   );
 }

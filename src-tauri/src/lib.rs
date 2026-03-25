@@ -768,6 +768,11 @@ fn reorder_tabs(ids: Vec<String>, db: State<DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_git_diff(project_id: String, db: State<DbState>) -> Result<String, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let path: String = conn
@@ -877,6 +882,7 @@ pub fn run() {
             reorder_projects,
             reorder_sessions,
             reorder_tabs,
+            read_file,
             get_git_diff,
             get_file_tree,
         ])
