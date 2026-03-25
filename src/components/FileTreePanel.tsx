@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X } from 'lucide-react';
 import { FileNode } from '../types';
 import { FileViewerModal } from './FileViewerModal';
+
+function flattenTree(nodes: FileNode[]): FileNode[] {
+  const result: FileNode[] = [];
+  for (const node of nodes) {
+    if (!node.is_dir) {
+      result.push(node);
+    }
+    if (node.children.length > 0) {
+      result.push(...flattenTree(node.children));
+    }
+  }
+  return result;
+}
 
 interface Props {
   projectId: string;
@@ -61,6 +74,7 @@ export function FileTreePanel({ projectId }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openFilePath, setOpenFilePath] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -77,6 +91,27 @@ export function FileTreePanel({ projectId }: Props) {
         <div className="px-3 py-2 border-b border-[#3a3a3a]">
           <span className="text-xs font-medium text-[#888]">File Tree</span>
         </div>
+        <div className="px-2 py-1.5 border-b border-[#3a3a3a]">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search files..."
+              autoCorrect="off"
+              spellCheck={false}
+              className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#ccc] placeholder-[#555] outline-none focus:border-[#555]"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-1.5 text-[#555] hover:text-[#999]"
+              >
+                <X size={10} />
+              </button>
+            )}
+          </div>
+        </div>
         <div className="flex-1 overflow-auto py-1">
           {loading && (
             <div className="px-3 py-4 text-xs text-[#555]">Loading...</div>
@@ -87,6 +122,29 @@ export function FileTreePanel({ projectId }: Props) {
           {!loading && !error && tree !== null && (
             tree.length === 0 ? (
               <div className="px-3 py-4 text-xs text-[#555]">Empty directory</div>
+            ) : query ? (
+              (() => {
+                const filtered = flattenTree(tree).filter(n =>
+                  n.path.toLowerCase().includes(query.toLowerCase())
+                );
+                return filtered.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-[#555]">No files match</div>
+                ) : (
+                  filtered.map((node) => (
+                    <div
+                      key={node.path}
+                      className="flex items-center gap-1 px-2 py-0.5 hover:bg-[#2a2a2a] cursor-pointer rounded"
+                      onClick={() => setOpenFilePath(node.path)}
+                    >
+                      <File size={12} className="text-[#666] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs text-[#b0b0b0] truncate">{node.name}</div>
+                        <div className="text-[10px] text-[#555] truncate">{node.path}</div>
+                      </div>
+                    </div>
+                  ))
+                );
+              })()
             ) : (
               tree.map((node) => (
                 <TreeNode key={node.path} node={node} depth={0} onOpenFile={setOpenFilePath} />
