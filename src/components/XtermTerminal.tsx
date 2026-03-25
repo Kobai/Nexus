@@ -92,7 +92,13 @@ export function XtermTerminal({ tabId, isActive }: Props) {
   return (
     <div
       ref={containerRef}
-      style={{ display: isActive ? 'flex' : 'none', height: '100%', width: '100%' }}
+      style={{ 
+        display: isActive ? 'flex' : 'none', 
+        height: '100%', 
+        width: '100%',
+        padding: '1rem',
+        boxSizing: 'border-box'
+      }}
     />
   );
 }
