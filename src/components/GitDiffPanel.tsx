@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronRight, X } from 'lucide-react';
 
 interface Props {
   projectId: string;
@@ -157,6 +157,7 @@ export function GitDiffPanel({ projectId }: Props) {
   const [files, setFiles] = useState<DiffFile[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   async function fetchDiff() {
     setLoading(true);
@@ -176,6 +177,10 @@ export function GitDiffPanel({ projectId }: Props) {
   const totalAdd = files?.reduce((s, f) => s + f.additions, 0) ?? 0;
   const totalDel = files?.reduce((s, f) => s + f.deletions, 0) ?? 0;
 
+  const visibleFiles = files && query
+    ? files.filter(f => f.filename.toLowerCase().includes(query.toLowerCase()))
+    : files;
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a2a] shrink-0">
@@ -183,7 +188,7 @@ export function GitDiffPanel({ projectId }: Props) {
           <span className="text-xs font-medium text-[#888]">Changes</span>
           {files && files.length > 0 && (
             <span className="text-[10px] text-[#555]">
-              {files.length} file{files.length !== 1 ? 's' : ''}
+              {(visibleFiles ?? []).length}{query ? `/${files.length}` : ''} file{files.length !== 1 ? 's' : ''}
               <span className="text-[#2d6e47] ml-1.5">+{totalAdd}</span>
               <span className="text-[#7a2e2e] ml-1">-{totalDel}</span>
             </span>
@@ -198,13 +203,35 @@ export function GitDiffPanel({ projectId }: Props) {
         </button>
       </div>
 
+      <div className="px-2 py-1.5 border-b border-[#2a2a2a] shrink-0">
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter files..."
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#ccc] placeholder-[#555] outline-none focus:border-[#555]"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-1.5 text-[#555] hover:text-[#999]"
+            >
+              <X size={10} />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-auto p-3">
         {loading && <div className="text-xs text-[#444] py-2">Loading...</div>}
         {error && <div className="text-xs text-[#f87171] py-2">{error}</div>}
-        {!loading && !error && files !== null && (
-          files.length === 0
-            ? <div className="text-xs text-[#444] py-2">No changes</div>
-            : files.map((f, i) => <FileSection key={i} file={f} />)
+        {!loading && !error && visibleFiles !== null && (
+          visibleFiles!.length === 0
+            ? <div className="text-xs text-[#444] py-2">{query ? 'No files match' : 'No changes'}</div>
+            : visibleFiles!.map((f, i) => <FileSection key={i} file={f} />)
         )}
       </div>
     </div>
