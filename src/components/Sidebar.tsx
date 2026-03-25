@@ -69,7 +69,7 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group border border-[#2a2a2a] rounded mx-1 my-0.5 border-l-2 ${
           isActive
             ? 'bg-[#2a2a2a] border-l-blue-500 text-[#d4d4d4]'
-            : 'text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e] border-l-transparent'
+            : 'text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e]'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
@@ -162,7 +162,7 @@ function ProjectItem({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="border border-[#2e2e2e] rounded mx-2 my-1">
+    <div ref={setNodeRef} style={style} className="border border-[#2e2e2e] rounded mx-2 my-1 pb-1">
       <div
         className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#1e1e1e]"
         {...attributes}

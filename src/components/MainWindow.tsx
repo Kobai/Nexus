@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { useTabStore } from '../store/tabStore';
 import { TabBar } from './TabBar';
@@ -9,6 +10,23 @@ export function MainWindow() {
   const activeTabId = useTabStore((s) => s.activeTabId);
 
   const activeTabs = activeSessionId ? (allTabs[activeSessionId] ?? []) : [];
+  const setActiveTab = useTabStore((s) => s.setActiveTab);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!e.metaKey || !activeSessionId) return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 9) {
+        const tab = activeTabs[num - 1];
+        if (tab) {
+          e.preventDefault();
+          setActiveTab(activeSessionId, tab.id);
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeSessionId, activeTabs, setActiveTab]);
   const hasAnySessions = Object.values(allTabs).some((tabs) => tabs.length > 0);
 
   return (

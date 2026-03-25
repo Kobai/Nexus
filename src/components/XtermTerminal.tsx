@@ -44,7 +44,7 @@ export function XtermTerminal({ tabId, isActive }: Props) {
 
     const term = new Terminal({
       fontFamily: 'monospace',
-      fontSize: 13,
+      fontSize: 11,
       theme: darkTheme,
       cursorBlink: true,
     });
