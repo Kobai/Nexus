@@ -1,0 +1,802 @@
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use anyhow::Result;
+use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, State};
+use uuid::Uuid;
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Project {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub sort_order: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Session {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub branch: String,
+    pub is_worktree: bool,
+    pub worktree_path: Option<String>,
+    pub sort_order: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Tab {
+    pub id: String,
+    pub session_id: String,
+    pub title: String,
+    pub sort_order: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppData {
+    pub projects: Vec<Project>,
+    pub sessions: Vec<Session>,
+    pub tabs: Vec<Tab>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PtyOutputPayload {
+    pub tab_id: String,
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PtyExitPayload {
+    pub tab_id: String,
+}
+
+// ─── PTY State ───────────────────────────────────────────────────────────────
+
+struct PtyHandle {
+    master: Box<dyn portable_pty::MasterPty + Send>,
+    child: Box<dyn portable_pty::Child + Send + Sync>,
+    writer: Box<dyn Write + Send>,
+}
+
+pub struct PtyManager {
+    handles: HashMap<String, PtyHandle>,
+}
+
+impl PtyManager {
+    fn new() -> Self {
+        Self {
+            handles: HashMap::new(),
+        }
+    }
+}
+
+// ─── App State ────────────────────────────────────────────────────────────────
+
+pub struct DbState(pub Mutex<Connection>);
+pub struct PtyState(pub Mutex<PtyManager>);
+
+// ─── DB Helpers ──────────────────────────────────────────────────────────────
+
+fn run_migrations(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+         );",
+    )?;
+
+    let current_version: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if current_version < 1 {
+        let migration = include_str!("../migrations/0001_initial.sql");
+        conn.execute_batch(migration)?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (1)",
+            [],
+        )?;
+    }
+
+    Ok(())
+}
+
+fn open_db(app_handle: &AppHandle) -> Result<Connection> {
+    let data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?;
+    std::fs::create_dir_all(&data_dir)?;
+    let db_path = data_dir.join("nexus.db");
+    let conn = Connection::open(db_path)?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    run_migrations(&conn)?;
+    Ok(conn)
+}
+
+// ─── venv Detection ──────────────────────────────────────────────────────────
+
+fn detect_venv(working_dir: &std::path::Path) -> Option<PathBuf> {
+    for name in &[".venv", "venv", "env"] {
+        let activate = working_dir.join(name).join("bin").join("activate");
+        if activate.exists() {
+            return Some(activate);
+        }
+    }
+    None
+}
+
+// ─── Spawn PTY ───────────────────────────────────────────────────────────────
+
+fn spawn_pty(
+    app_handle: AppHandle,
+    tab_id: String,
+    working_dir: PathBuf,
+    pty_manager: &mut PtyManager,
+) -> Result<()> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+
+    let pty_system = NativePtySystem::default();
+    let pair = pty_system.openpty(PtySize {
+        rows: 24,
+        cols: 80,
+        pixel_width: 0,
+        pixel_height: 0,
+    })?;
+
+    let mut cmd = CommandBuilder::new(&shell);
+    cmd.cwd(&working_dir);
+
+    // Pass current environment
+    for (key, val) in std::env::vars() {
+        cmd.env(key, val);
+    }
+
+    let child = pair.slave.spawn_command(cmd)?;
+    let mut writer = pair.master.take_writer()?;
+    let mut reader = pair.master.try_clone_reader()?;
+
+    // venv activation
+    if let Some(activate_path) = detect_venv(&working_dir) {
+        let cmd_str = format!("source {}\r", activate_path.display());
+        let _ = writer.write_all(cmd_str.as_bytes());
+    }
+
+    // Reader thread
+    let tab_id_clone = tab_id.clone();
+    let app_handle_clone = app_handle.clone();
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) | Err(_) => {
+                    let _ = app_handle_clone.emit(
+                        "pty-exit",
+                        PtyExitPayload {
+                            tab_id: tab_id_clone.clone(),
+                        },
+                    );
+                    break;
+                }
+                Ok(n) => {
+                    let _ = app_handle_clone.emit(
+                        "pty-output",
+                        PtyOutputPayload {
+                            tab_id: tab_id_clone.clone(),
+                            data: buf[..n].to_vec(),
+                        },
+                    );
+                }
+            }
+        }
+    });
+
+    pty_manager.handles.insert(
+        tab_id,
+        PtyHandle {
+            master: pair.master,
+            child,
+            writer,
+        },
+    );
+
+    Ok(())
+}
+
+// ─── Tauri Commands ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn get_all_data(db: State<DbState>) -> Result<AppData, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let projects = {
+        let mut stmt = conn
+            .prepare("SELECT id, name, path, sort_order, created_at FROM projects ORDER BY sort_order")
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([], |row| {
+            Ok(Project {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                sort_order: row.get(3)?,
+                created_at: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+        result
+    };
+
+    let sessions = {
+        let mut stmt = conn
+            .prepare("SELECT id, project_id, name, branch, is_worktree, worktree_path, sort_order, created_at FROM sessions ORDER BY sort_order")
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([], |row| {
+            Ok(Session {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                name: row.get(2)?,
+                branch: row.get(3)?,
+                is_worktree: row.get::<_, i64>(4)? != 0,
+                worktree_path: row.get(5)?,
+                sort_order: row.get(6)?,
+                created_at: row.get(7)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+        result
+    };
+
+    let tabs = {
+        let mut stmt = conn
+            .prepare("SELECT id, session_id, title, sort_order, created_at FROM terminal_tabs ORDER BY sort_order")
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([], |row| {
+            Ok(Tab {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                title: row.get(2)?,
+                sort_order: row.get(3)?,
+                created_at: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+        result
+    };
+
+    Ok(AppData {
+        projects,
+        sessions,
+        tabs,
+    })
+}
+
+#[tauri::command]
+fn add_project(name: String, path: String, db: State<DbState>) -> Result<Project, String> {
+    // Validate git repo
+    let output = std::process::Command::new("git")
+        .args(["-C", &path, "rev-parse", "--is-inside-work-tree"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err("Not a git repository".to_string());
+    }
+
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let id = Uuid::new_v4().to_string();
+
+    let sort_order: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM projects",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    conn.execute(
+        "INSERT INTO projects (id, name, path, sort_order) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![id, name, path, sort_order],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(Project {
+        id,
+        name,
+        path,
+        sort_order,
+        created_at: chrono_now(),
+    })
+}
+
+#[tauri::command]
+fn remove_project(
+    id: String,
+    db: State<DbState>,
+    pty_state: State<PtyState>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    // Get all tab IDs for this project's sessions
+    let tab_ids: Vec<String> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT tt.id FROM terminal_tabs tt
+                 JOIN sessions s ON s.id = tt.session_id
+                 WHERE s.project_id = ?1",
+            )
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([&id], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        result
+    };
+
+    // Kill PTYs
+    {
+        let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+        for tab_id in &tab_ids {
+            if let Some(mut handle) = pty_manager.handles.remove(tab_id) {
+                let _ = handle.child.kill();
+            }
+        }
+    }
+
+    // Get worktree sessions and remove worktrees
+    let worktree_sessions: Vec<(String, String)> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT worktree_path, project_id FROM sessions WHERE project_id = ?1 AND is_worktree = 1 AND worktree_path IS NOT NULL",
+            )
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([&id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        result
+    };
+
+    // Get project path for worktree removal
+    let project_path: String = conn
+        .query_row("SELECT path FROM projects WHERE id = ?1", [&id], |row| {
+            row.get(0)
+        })
+        .map_err(|e| e.to_string())?;
+
+    for (worktree_path, _) in worktree_sessions {
+        let _ = std::process::Command::new("git")
+            .args(["-C", &project_path, "worktree", "remove", "--force", &worktree_path])
+            .output();
+    }
+
+    conn.execute("DELETE FROM projects WHERE id = ?1", [&id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn list_branches(project_id: String, db: State<DbState>) -> Result<Vec<String>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row(
+            "SELECT path FROM projects WHERE id = ?1",
+            [&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let output = std::process::Command::new("git")
+        .args(["-C", &path, "branch", "--format=%(refname:short)"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let branches = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    Ok(branches)
+}
+
+#[derive(Deserialize)]
+pub struct CreateSessionArgs {
+    pub project_id: String,
+    pub name: String,
+    pub branch: String,
+    pub branch_mode: String, // "new" or "existing"
+    pub base_branch: Option<String>,
+    pub use_worktree: bool,
+}
+
+#[tauri::command]
+fn create_session(
+    args: CreateSessionArgs,
+    app_handle: AppHandle,
+    db: State<DbState>,
+    pty_state: State<PtyState>,
+) -> Result<(Session, Tab), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let project_path: String = conn
+        .query_row(
+            "SELECT path FROM projects WHERE id = ?1",
+            [&args.project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let project_name: String = conn
+        .query_row(
+            "SELECT name FROM projects WHERE id = ?1",
+            [&args.project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let mut worktree_path: Option<String> = None;
+    let working_dir: PathBuf;
+
+    if args.branch_mode == "new" {
+        let base = args.base_branch.as_deref().unwrap_or("HEAD");
+        if args.use_worktree {
+            // worktree path: <project_path>/../<project_name>-<branch_name>
+            let wt_path = PathBuf::from(&project_path)
+                .parent()
+                .unwrap_or(std::path::Path::new("/tmp"))
+                .join(format!("{}-{}", project_name, args.branch));
+            let wt_path_str = wt_path.to_string_lossy().to_string();
+
+            let output = std::process::Command::new("git")
+                .args([
+                    "-C", &project_path,
+                    "worktree", "add",
+                    &wt_path_str,
+                    "-b", &args.branch,
+                    base,
+                ])
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).to_string());
+            }
+
+            worktree_path = Some(wt_path_str.clone());
+            working_dir = wt_path;
+        } else {
+            let output = std::process::Command::new("git")
+                .args(["-C", &project_path, "checkout", "-b", &args.branch, base])
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).to_string());
+            }
+
+            working_dir = PathBuf::from(&project_path);
+        }
+    } else {
+        // existing branch — just use project path
+        working_dir = PathBuf::from(&project_path);
+    }
+
+    let session_id = Uuid::new_v4().to_string();
+    let sort_order: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?1",
+            [&args.project_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    conn.execute(
+        "INSERT INTO sessions (id, project_id, name, branch, is_worktree, worktree_path, sort_order) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![
+            session_id,
+            args.project_id,
+            args.name,
+            args.branch,
+            if args.use_worktree && args.branch_mode == "new" { 1 } else { 0 },
+            worktree_path,
+            sort_order
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Create first tab
+    let tab_id = Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO terminal_tabs (id, session_id, title, sort_order) VALUES (?1, ?2, 'Terminal', 0)",
+        rusqlite::params![tab_id, session_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Spawn PTY
+    {
+        let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+        spawn_pty(app_handle, tab_id.clone(), working_dir, &mut pty_manager)
+            .map_err(|e| e.to_string())?;
+    }
+
+    let session = Session {
+        id: session_id.clone(),
+        project_id: args.project_id,
+        name: args.name,
+        branch: args.branch,
+        is_worktree: args.use_worktree && args.branch_mode == "new",
+        worktree_path,
+        sort_order,
+        created_at: chrono_now(),
+    };
+
+    let tab = Tab {
+        id: tab_id,
+        session_id,
+        title: "Terminal".to_string(),
+        sort_order: 0,
+        created_at: chrono_now(),
+    };
+
+    Ok((session, tab))
+}
+
+#[tauri::command]
+fn stop_session(
+    id: String,
+    db: State<DbState>,
+    pty_state: State<PtyState>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    // Get tab IDs for this session
+    let tab_ids: Vec<String> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM terminal_tabs WHERE session_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let result = stmt.query_map([&id], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        result
+    };
+
+    // Kill PTYs
+    {
+        let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+        for tab_id in &tab_ids {
+            if let Some(mut handle) = pty_manager.handles.remove(tab_id) {
+                let _ = handle.child.kill();
+            }
+        }
+    }
+
+    // Worktree cleanup
+    let session: Option<(String, String)> = conn
+        .query_row(
+            "SELECT s.worktree_path, p.path FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.id = ?1 AND s.is_worktree = 1",
+            [&id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok();
+
+    if let Some((worktree_path, project_path)) = session {
+        let _ = std::process::Command::new("git")
+            .args(["-C", &project_path, "worktree", "remove", "--force", &worktree_path])
+            .output();
+    }
+
+    conn.execute("DELETE FROM sessions WHERE id = ?1", [&id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn create_tab(
+    session_id: String,
+    app_handle: AppHandle,
+    db: State<DbState>,
+    pty_state: State<PtyState>,
+) -> Result<Tab, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    // Get working dir for this session
+    let (is_worktree, worktree_path, project_path): (bool, Option<String>, String) = conn
+        .query_row(
+            "SELECT s.is_worktree, s.worktree_path, p.path FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.id = ?1",
+            [&session_id],
+            |row| Ok((row.get::<_, i64>(0)? != 0, row.get(1)?, row.get(2)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let working_dir = if is_worktree {
+        PathBuf::from(worktree_path.unwrap_or(project_path))
+    } else {
+        PathBuf::from(project_path)
+    };
+
+    let sort_order: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM terminal_tabs WHERE session_id = ?1",
+            [&session_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let tab_id = Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO terminal_tabs (id, session_id, title, sort_order) VALUES (?1, ?2, 'Terminal', ?3)",
+        rusqlite::params![tab_id, session_id, sort_order],
+    )
+    .map_err(|e| e.to_string())?;
+
+    {
+        let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+        spawn_pty(app_handle, tab_id.clone(), working_dir, &mut pty_manager)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(Tab {
+        id: tab_id,
+        session_id,
+        title: "Terminal".to_string(),
+        sort_order,
+        created_at: chrono_now(),
+    })
+}
+
+#[tauri::command]
+fn close_tab(tab_id: String, db: State<DbState>, pty_state: State<PtyState>) -> Result<(), String> {
+    {
+        let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+        if let Some(mut handle) = pty_manager.handles.remove(&tab_id) {
+            let _ = handle.child.kill();
+        }
+    }
+
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM terminal_tabs WHERE id = ?1", [&tab_id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn pty_write(tab_id: String, data: Vec<u8>, pty_state: State<PtyState>) -> Result<(), String> {
+    let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(handle) = pty_manager.handles.get_mut(&tab_id) {
+        handle.writer.write_all(&data).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn pty_resize(tab_id: String, cols: u16, rows: u16, pty_state: State<PtyState>) -> Result<(), String> {
+    let pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(handle) = pty_manager.handles.get(&tab_id) {
+        handle
+            .master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn rename_tab(tab_id: String, title: String, db: State<DbState>) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE terminal_tabs SET title = ?1 WHERE id = ?2",
+        rusqlite::params![title, tab_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_projects(ids: Vec<String>, db: State<DbState>) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    for (i, id) in ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE projects SET sort_order = ?1 WHERE id = ?2",
+            rusqlite::params![i as i64, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_sessions(ids: Vec<String>, db: State<DbState>) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    for (i, id) in ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE sessions SET sort_order = ?1 WHERE id = ?2",
+            rusqlite::params![i as i64, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_tabs(ids: Vec<String>, db: State<DbState>) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    for (i, id) in ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE terminal_tabs SET sort_order = ?1 WHERE id = ?2",
+            rusqlite::params![i as i64, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn chrono_now() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    format!("{}", secs)
+}
+
+// ─── App Entry ───────────────────────────────────────────────────────────────
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let conn = open_db(app.handle()).expect("Failed to open database");
+            app.manage(DbState(Mutex::new(conn)));
+            app.manage(PtyState(Mutex::new(PtyManager::new())));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_all_data,
+            add_project,
+            remove_project,
+            list_branches,
+            create_session,
+            stop_session,
+            create_tab,
+            close_tab,
+            pty_write,
+            pty_resize,
+            rename_tab,
+            reorder_projects,
+            reorder_sessions,
+            reorder_tabs,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
