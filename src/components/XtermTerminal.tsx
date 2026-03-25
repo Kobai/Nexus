@@ -35,7 +35,7 @@ interface Props {
   isActive: boolean;
 }
 
-export function XtermTerminal({ tabId, isActive }: Props) {
+export function XtermTerminal({ tabId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { registerTerminal, unregisterTerminal } = useTerminalStore();
 

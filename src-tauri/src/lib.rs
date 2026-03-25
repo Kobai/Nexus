@@ -123,11 +123,10 @@ fn run_migrations(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn open_db(app_handle: &AppHandle) -> Result<Connection> {
-    let data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?;
+fn open_db(_app_handle: &AppHandle) -> Result<Connection> {
+    let data_dir = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get home dir"))?
+        .join(".nexus");
     std::fs::create_dir_all(&data_dir)?;
     let db_path = data_dir.join("nexus.db");
     let conn = Connection::open(db_path)?;
@@ -173,6 +172,8 @@ fn spawn_pty(
     for (key, val) in std::env::vars() {
         cmd.env(key, val);
     }
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("LANG", "en_US.UTF-8");
 
     let child = pair.slave.spawn_command(cmd)?;
     let mut writer = pair.master.take_writer()?;

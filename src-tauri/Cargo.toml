@@ -22,3 +22,4 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 portable-pty = "0.8"
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
+dirs = "5"
