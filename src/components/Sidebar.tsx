@@ -75,7 +75,7 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         <span className="truncate">{session.name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
-          className="opacity-0 group-hover:opacity-100 text-[#555] hover:text-red-400 text-xs px-1"
+          className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 text-xs px-1"
           title="Stop session"
         >
           ■
@@ -154,7 +154,11 @@ function ProjectItem({
         {...attributes}
         {...listeners}
       >
-        {project.name[0].toUpperCase()}
+        {/* Folder icon for collapsed state */}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3 3a1 1 0 001.414 0l3-3a1 1 0 011.414.293H18a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M2 6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-2H6l2-2h6V6H2z" clipRule="evenodd" />
+        </svg>
       </div>
     );
   }
@@ -166,26 +170,31 @@ function ProjectItem({
         {...attributes}
         {...listeners}
       >
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
             className="text-[#555] hover:text-[#d4d4d4] text-xs w-4 flex-shrink-0"
           >
             {collapsed ? '▶' : '▼'}
           </button>
+          {/* Folder icon */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#8be9fd]/50" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3 3a1 1 0 001.414 0l3-3a1 1 0 011.414.293H18a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M2 6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-2H6l2-2h6V6H2z" clipRule="evenodd" />
+          </svg>
           <span className="text-[#d4d4d4] text-sm font-medium truncate">{project.name}</span>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); setShowNewSession(true); }}
-            className="text-[#555] hover:text-[#d4d4d4] text-base leading-none px-0.5"
+            className="text-[#50fa7b] hover:text-[#50fa7b]/80 text-base leading-none px-0.5"
             title="New session"
           >
             +
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmRemove(true); }}
-            className="text-[#555] hover:text-red-400 text-xs px-0.5"
+            className="text-[#ff5555] hover:text-[#ff5555]/80 text-xs px-0.5"
             title="Remove project"
           >
             ×
@@ -194,13 +203,15 @@ function ProjectItem({
       </div>
 
       {!collapsed && (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSessionDragEnd}>
-          <SortableContext items={sessions.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-            {sessions.map((session) => (
-              <SessionItem key={session.id} session={session} projectId={project.id} />
-            ))}
-          </SortableContext>
-        </DndContext>
+        <div className="pl-4">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSessionDragEnd}>
+            <SortableContext items={sessions.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              {sessions.map((session) => (
+                <SessionItem key={session.id} session={session} projectId={project.id} />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
       )}
 
       {showNewSession && (
