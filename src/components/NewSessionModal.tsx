@@ -29,8 +29,9 @@ export function NewSessionModal({ projectId, onClose }: Props) {
     invoke<string[]>('list_branches', { projectId }).then((b) => {
       setBranches(b);
       if (b.length > 0) {
-        setBaseBranch(b[0]);
-        setExistingBranch(b[0]);
+        const defaultBranch = b.includes('main') ? 'main' : b[0];
+        setBaseBranch(defaultBranch);
+        setExistingBranch(defaultBranch);
       }
     });
   }, [projectId]);
@@ -78,6 +79,8 @@ export function NewSessionModal({ projectId, onClose }: Props) {
               className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500"
               placeholder="my-feature"
               autoFocus
+              autoCorrect="off"
+              spellCheck={false}
             />
           </div>
 
@@ -114,6 +117,8 @@ export function NewSessionModal({ projectId, onClose }: Props) {
                   onChange={(e) => setNewBranchName(e.target.value)}
                   className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500"
                   placeholder="feature/my-change"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               </div>
               <label className="flex items-center gap-2 text-sm text-[#d4d4d4] cursor-pointer">

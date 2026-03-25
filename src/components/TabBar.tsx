@@ -67,6 +67,8 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
           onBlur={commitRename}
           onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setEditing(false); }}
           autoFocus
+          autoCorrect="off"
+          spellCheck={false}
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
