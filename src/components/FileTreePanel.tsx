@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { openPath } from '@tauri-apps/plugin-opener';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File } from 'lucide-react';
 import { FileNode } from '../types';
 
@@ -18,8 +19,9 @@ function TreeNode({ node, depth }: TreeNodeProps) {
   if (!node.is_dir) {
     return (
       <div
-        className="flex items-center gap-1 px-2 py-0.5 hover:bg-[#2a2a2a] cursor-default rounded"
-        style={{ paddingLeft: `${8 + depth * 12}px` }}
+        className="flex items-center gap-1 py-0.5 hover:bg-[#2a2a2a] cursor-pointer rounded"
+        style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
+        onClick={() => openPath(node.path)}
       >
         <File size={12} className="text-[#666] shrink-0" />
         <span className="text-xs text-[#b0b0b0] truncate">{node.name}</span>
