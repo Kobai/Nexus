@@ -3,6 +3,21 @@ import { invoke } from '@tauri-apps/api/core';
 import { X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+function getLanguage(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+    rs: 'rust', py: 'python', go: 'go', rb: 'ruby', java: 'java',
+    c: 'c', cpp: 'cpp', cs: 'csharp', swift: 'swift', kt: 'kotlin',
+    css: 'css', scss: 'scss', html: 'html', json: 'json',
+    yaml: 'yaml', yml: 'yaml', toml: 'toml', sh: 'bash',
+    sql: 'sql', graphql: 'graphql', xml: 'xml',
+  };
+  return map[ext] ?? 'text';
+}
 
 interface Props {
   path: string;
@@ -66,11 +81,21 @@ export function FileViewerModal({ path, onClose }: Props) {
                   ol: ({ children }) => <ol className="list-decimal list-inside text-[#ccc] mb-3 space-y-1 pl-4 text-sm">{children}</ol>,
                   li: ({ children }) => <li className="text-[#ccc] text-sm">{children}</li>,
                   blockquote: ({ children }) => <blockquote className="border-l-4 border-[#444] pl-4 text-[#999] italic my-3">{children}</blockquote>,
-                  code: ({ className, children, ...props }) => {
-                    const isBlock = !!className;
-                    return isBlock
-                      ? <code className="block bg-[#161616] text-[#e0e0e0] font-mono text-[12px] p-4 rounded overflow-auto">{children}</code>
-                      : <code className="bg-[#2a2a2a] text-[#e0e0e0] font-mono text-[11px] px-1.5 py-0.5 rounded">{children}</code>;
+                  code: ({ className, children }) => {
+                    const match = /language-(\w+)/.exec(className ?? '');
+                    return match ? (
+                      <SyntaxHighlighter
+                        language={match[1]}
+                        style={oneDark}
+                        customStyle={{ margin: 0, fontSize: '12px' }}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className="bg-[#2a2a2a] text-[#e0e0e0] font-mono text-[11px] px-1.5 py-0.5 rounded">
+                        {children}
+                      </code>
+                    );
                   },
                   pre: ({ children }) => <pre className="bg-[#161616] rounded mb-4 overflow-auto">{children}</pre>,
                   hr: () => <hr className="border-[#333] my-6" />,
@@ -86,9 +111,15 @@ export function FileViewerModal({ path, onClose }: Props) {
               </ReactMarkdown>
             </div>
           ) : (
-            <pre className="p-4 text-[12px] leading-relaxed font-mono text-[#ccc] whitespace-pre">
+            <SyntaxHighlighter
+              language={getLanguage(filename)}
+              style={oneDark}
+              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6' }}
+              showLineNumbers
+              lineNumberStyle={{ color: '#3a3a3a', minWidth: '2.5em' }}
+            >
               {content}
-            </pre>
+            </SyntaxHighlighter>
           )}
         </div>
       </div>
