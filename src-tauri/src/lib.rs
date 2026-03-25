@@ -50,6 +50,14 @@ pub struct AppData {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileNode {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub children: Vec<FileNode>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PtyOutputPayload {
     pub tab_id: String,
     pub data: Vec<u8>,
@@ -759,6 +767,79 @@ fn reorder_tabs(ids: Vec<String>, db: State<DbState>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_git_diff(project_id: String, db: State<DbState>) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row(
+            "SELECT path FROM projects WHERE id = ?1",
+            [&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let output = std::process::Command::new("git")
+        .args(["-C", &path, "diff", "HEAD"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn build_file_tree(dir: &std::path::Path, current_depth: u32, max_depth: u32) -> Vec<FileNode> {
+    if current_depth >= max_depth {
+        return vec![];
+    }
+
+    const SKIP: &[&str] = &[".git", "node_modules", "target"];
+
+    let mut entries: Vec<_> = match std::fs::read_dir(dir) {
+        Ok(e) => e.flatten().collect(),
+        Err(_) => return vec![],
+    };
+
+    entries.sort_by(|a, b| {
+        let a_dir = a.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let b_dir = b.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        match (a_dir, b_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.file_name().cmp(&b.file_name()),
+        }
+    });
+
+    let mut nodes = Vec::new();
+    for entry in entries {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if SKIP.contains(&name.as_str()) {
+            continue;
+        }
+        let path = entry.path().to_string_lossy().to_string();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let children = if is_dir {
+            build_file_tree(&entry.path(), current_depth + 1, max_depth)
+        } else {
+            vec![]
+        };
+        nodes.push(FileNode { name, path, is_dir, children });
+    }
+    nodes
+}
+
+#[tauri::command]
+fn get_file_tree(project_id: String, max_depth: u32, db: State<DbState>) -> Result<Vec<FileNode>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row(
+            "SELECT path FROM projects WHERE id = ?1",
+            [&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(build_file_tree(std::path::Path::new(&path), 0, max_depth))
+}
+
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -796,6 +877,8 @@ pub fn run() {
             reorder_projects,
             reorder_sessions,
             reorder_tabs,
+            get_git_diff,
+            get_file_tree,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

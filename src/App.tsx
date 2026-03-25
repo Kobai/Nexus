@@ -7,6 +7,7 @@ import { useTabStore } from './store/tabStore';
 import { useTerminalStore } from './store/terminalStore';
 import { Sidebar } from './components/Sidebar';
 import { MainWindow } from './components/MainWindow';
+import { RightSidebar } from './components/RightSidebar';
 import { AppData } from './types';
 
 export default function App() {
@@ -74,6 +75,7 @@ export default function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-[#1a1a1a]">
       <Sidebar />
       <MainWindow />
+      <RightSidebar />
     </div>
   );
 }
