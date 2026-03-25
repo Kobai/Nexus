@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Folder } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -65,10 +66,10 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group ${
+        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group border border-[#2a2a2a] rounded mx-1 my-0.5 border-l-2 ${
           isActive
-            ? 'bg-[#2a2a2a] border-l-2 border-blue-500 text-[#d4d4d4]'
-            : 'text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e] border-l-2 border-transparent'
+            ? 'bg-[#2a2a2a] border-l-blue-500 text-[#d4d4d4]'
+            : 'text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e]'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
@@ -155,16 +156,13 @@ function ProjectItem({
         {...listeners}
       >
         {/* Folder icon for collapsed state */}
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3 3a1 1 0 001.414 0l3-3a1 1 0 011.414.293H18a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" clipRule="evenodd" />
-          <path fillRule="evenodd" d="M2 6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-2H6l2-2h6V6H2z" clipRule="evenodd" />
-        </svg>
+        <Folder size={16} />
       </div>
     );
   }
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className="border border-[#2e2e2e] rounded mx-2 my-1 pb-1">
       <div
         className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#1e1e1e]"
         {...attributes}
@@ -178,10 +176,7 @@ function ProjectItem({
             {collapsed ? '▶' : '▼'}
           </button>
           {/* Folder icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#8be9fd]/50" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3 3a1 1 0 001.414 0l3-3a1 1 0 011.414.293H18a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" clipRule="evenodd" />
-            <path fillRule="evenodd" d="M2 6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-2H6l2-2h6V6H2z" clipRule="evenodd" />
-          </svg>
+          <Folder size={16} className="text-[#8be9fd]/50" />
           <span className="text-[#d4d4d4] text-sm font-medium truncate">{project.name}</span>
         </div>
         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100">

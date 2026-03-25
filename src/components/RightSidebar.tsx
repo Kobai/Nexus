@@ -8,7 +8,7 @@ type Panel = 'git' | 'filetree';
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 600;
-const DEFAULT_WIDTH = 288;
+const DEFAULT_WIDTH = MAX_WIDTH;
 
 interface IconButtonProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
