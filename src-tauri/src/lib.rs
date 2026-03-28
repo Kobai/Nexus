@@ -240,6 +240,10 @@ fn spawn_pty(
         cmd.env(key, val);
     }
 
+    // Ensure terminal type is set so shells handle backspace/escape sequences correctly
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+
     let child = pair.slave.spawn_command(cmd)?;
     let mut writer = pair.master.take_writer()?;
     let mut reader = pair.master.try_clone_reader()?;
