@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use anyhow::Result;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
@@ -68,6 +69,59 @@ pub struct PtyExitPayload {
     pub tab_id: String,
 }
 
+// ─── Usage Types ─────────────────────────────────────────────────────────────
+
+/// Returned by get_claude_usage.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsageResult {
+    /// Tokens summed from all assistant messages whose timestamp falls within
+    /// the rolling window [now - window_hours, now].
+    pub tokens_in_window: u64,
+    /// Unix seconds of the oldest assistant message still inside the window,
+    /// or None if the window is empty. Used by the frontend to compute the
+    /// countdown to when that message rolls off and capacity is freed.
+    pub oldest_in_window_secs: Option<u64>,
+    /// Current server time as Unix seconds (so the frontend can derive
+    /// "seconds until reset" without its own clock drift).
+    pub now_secs: u64,
+    /// Window size in hours, echoed from settings (default 5).
+    pub window_hours: u64,
+}
+
+/// Returned by / accepted by get_usage_settings / set_usage_settings.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UsageSettings {
+    /// Rolling window size in hours. Default 5.
+    pub window_hours: u64,
+    /// Optional soft token limit. 0 means unset.
+    pub limit: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct JournalEntry {
+    #[serde(rename = "type")]
+    entry_type: Option<String>,
+    timestamp: Option<String>,
+    message: Option<JournalMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct JournalMessage {
+    usage: Option<TokenUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenUsage {
+    #[serde(default)]
+    input_tokens: u64,
+    #[serde(default)]
+    output_tokens: u64,
+    #[serde(default)]
+    cache_creation_input_tokens: u64,
+    #[serde(default)]
+    cache_read_input_tokens: u64,
+}
+
 // ─── PTY State ───────────────────────────────────────────────────────────────
 
 struct PtyHandle {
@@ -92,6 +146,9 @@ impl PtyManager {
 
 pub struct DbState(pub Mutex<Connection>);
 pub struct PtyState(pub Mutex<PtyManager>);
+/// Cache for get_claude_usage — invalidated after 60 s so the countdown stays
+/// reasonably fresh without hammering the filesystem on every render.
+pub struct UsageCache(pub Mutex<Option<(Instant, UsageResult)>>);
 
 // ─── DB Helpers ──────────────────────────────────────────────────────────────
 
@@ -116,6 +173,15 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         conn.execute_batch(migration)?;
         conn.execute(
             "INSERT INTO schema_version (version) VALUES (1)",
+            [],
+        )?;
+    }
+
+    if current_version < 2 {
+        let migration = include_str!("../migrations/0002_settings.sql");
+        conn.execute_batch(migration)?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (2)",
             [],
         )?;
     }
@@ -845,6 +911,173 @@ fn get_file_tree(project_id: String, max_depth: u32, db: State<DbState>) -> Resu
     Ok(build_file_tree(std::path::Path::new(&path), 0, max_depth))
 }
 
+fn read_settings_from_conn(conn: &Connection) -> UsageSettings {
+    let read = |key: &str, default: u64| -> u64 {
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            [key],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+    };
+    UsageSettings {
+        window_hours: read("window_hours", 5),
+        limit: read("usage_limit", 0),
+    }
+}
+
+/// Parse an ISO-8601 UTC timestamp like "2026-03-25T16:27:47.063Z" → Unix secs.
+fn iso8601_to_unix(ts: &str) -> Option<u64> {
+    let ts = ts.trim_end_matches('Z');
+    let ts = ts.split('.').next()?;
+    let (date, time) = ts.split_once('T')?;
+    let mut dp = date.split('-');
+    let mut tp = time.split(':');
+    let year: i64 = dp.next()?.parse().ok()?;
+    let month: i64 = dp.next()?.parse().ok()?;
+    let day: i64 = dp.next()?.parse().ok()?;
+    let hour: i64 = tp.next()?.parse().ok()?;
+    let min: i64 = tp.next()?.parse().ok()?;
+    let sec: i64 = tp.next()?.parse().ok()?;
+    // Days from epoch via Rata Die
+    let m = if month <= 2 { month + 9 } else { month - 3 };
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let doy = (153 * m + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    let secs = days * 86400 + hour * 3600 + min * 60 + sec;
+    if secs < 0 { None } else { Some(secs as u64) }
+}
+
+#[tauri::command]
+fn get_claude_usage(
+    cache: State<UsageCache>,
+    db: State<DbState>,
+) -> Result<UsageResult, String> {
+    // 60-second cache so the countdown stays fresh
+    {
+        let guard = cache.0.lock().map_err(|e| e.to_string())?;
+        if let Some((cached_at, ref result)) = *guard {
+            if cached_at.elapsed().as_secs() < 60 {
+                return Ok(result.clone());
+            }
+        }
+    }
+
+    let settings = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        read_settings_from_conn(&conn)
+    };
+    let window_secs = settings.window_hours * 3600;
+
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let cutoff = now_secs.saturating_sub(window_secs);
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let projects_dir = PathBuf::from(&home).join(".claude").join("projects");
+
+    let mut tokens_in_window: u64 = 0;
+    let mut oldest_in_window_secs: Option<u64> = None;
+
+    if projects_dir.exists() {
+        for entry in walkdir::WalkDir::new(&projects_dir)
+            .follow_links(false)
+            .into_iter()
+            .flatten()
+        {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            for line in content.lines() {
+                let Ok(entry) = serde_json::from_str::<JournalEntry>(line) else {
+                    continue;
+                };
+                if entry.entry_type.as_deref() != Some("assistant") {
+                    continue;
+                }
+                let ts_secs = entry.timestamp
+                    .as_deref()
+                    .and_then(iso8601_to_unix)
+                    .unwrap_or(0);
+                if ts_secs < cutoff {
+                    continue;
+                }
+                if let Some(msg) = entry.message {
+                    if let Some(usage) = msg.usage {
+                        let total = usage.input_tokens
+                            .saturating_add(usage.output_tokens)
+                            .saturating_add(usage.cache_creation_input_tokens)
+                            .saturating_add(usage.cache_read_input_tokens);
+                        if total > 0 {
+                            tokens_in_window = tokens_in_window.saturating_add(total);
+                            oldest_in_window_secs = Some(match oldest_in_window_secs {
+                                Some(prev) => prev.min(ts_secs),
+                                None => ts_secs,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let result = UsageResult {
+        tokens_in_window,
+        oldest_in_window_secs,
+        now_secs,
+        window_hours: settings.window_hours,
+    };
+
+    {
+        let mut guard = cache.0.lock().map_err(|e| e.to_string())?;
+        *guard = Some((Instant::now(), result.clone()));
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn get_usage_settings(db: State<DbState>) -> Result<UsageSettings, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    Ok(read_settings_from_conn(&conn))
+}
+
+#[tauri::command]
+fn set_usage_settings(
+    window_hours: u64,
+    limit: u64,
+    db: State<DbState>,
+    cache: State<UsageCache>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let upsert = |key: &str, val: u64| -> Result<(), String> {
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, val.to_string()],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    };
+    upsert("window_hours", window_hours)?;
+    upsert("usage_limit", limit)?;
+    // Invalidate cache so next poll picks up the new window size
+    let mut guard = cache.0.lock().map_err(|e| e.to_string())?;
+    *guard = None;
+    Ok(())
+}
+
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -865,6 +1098,7 @@ pub fn run() {
             let conn = open_db(app.handle()).expect("Failed to open database");
             app.manage(DbState(Mutex::new(conn)));
             app.manage(PtyState(Mutex::new(PtyManager::new())));
+            app.manage(UsageCache(Mutex::new(None)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -885,6 +1119,9 @@ pub fn run() {
             read_file,
             get_git_diff,
             get_file_tree,
+            get_claude_usage,
+            get_usage_settings,
+            set_usage_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

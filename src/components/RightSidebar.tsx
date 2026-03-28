@@ -126,6 +126,7 @@ export function RightSidebar() {
           title="File Tree"
         />
       </div>
+
     </div>
   );
 }

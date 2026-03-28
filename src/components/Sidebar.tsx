@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Folder } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Folder, Trash2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -23,6 +23,7 @@ import { useTerminalStore } from '../store/terminalStore';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewSessionModal } from './NewSessionModal';
 import { AddProjectModal } from './AddProjectModal';
+import { ClaudeUsageBar } from './ClaudeUsageBar';
 import { Project, Session, Tab } from '../types';
 
 const EMPTY_TABS: Tab[] = [];
@@ -114,6 +115,8 @@ function ProjectItem({
   const [collapsed, setCollapsed] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -167,6 +170,11 @@ function ProjectItem({
         className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#1e1e1e]"
         {...attributes}
         {...listeners}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
       >
         <div className="flex items-center gap-2 min-w-0">
           <button
@@ -175,11 +183,10 @@ function ProjectItem({
           >
             {collapsed ? '▶' : '▼'}
           </button>
-          {/* Folder icon */}
           <Folder size={16} className="text-[#8be9fd]/50" />
           <span className="text-[#d4d4d4] text-sm font-medium truncate">{project.name}</span>
         </div>
-        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100">
+        <div className="opacity-0 group-hover:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); setShowNewSession(true); }}
             className="text-[#50fa7b] hover:text-[#50fa7b]/80 text-base leading-none px-0.5"
@@ -187,15 +194,31 @@ function ProjectItem({
           >
             +
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setConfirmRemove(true); }}
-            className="text-[#ff5555] hover:text-[#ff5555]/80 text-xs px-0.5"
-            title="Remove project"
-          >
-            ×
-          </button>
         </div>
       </div>
+
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          />
+          <div
+            ref={contextMenuRef}
+            className="fixed z-50 bg-[#252525] border border-[#3a3a3a] rounded shadow-xl py-1 min-w-[160px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setContextMenu(null); setConfirmRemove(true); }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-[#2a2a2a] hover:text-red-300"
+            >
+              <Trash2 size={14} />
+              Remove project
+            </button>
+          </div>
+        </>
+      )}
 
       {!collapsed && (
         <div className="pl-4">
@@ -316,6 +339,9 @@ export function Sidebar() {
           {collapsed ? '+' : '+ Add Project'}
         </button>
       </div>
+
+      {/* Claude Usage */}
+      <ClaudeUsageBar collapsed={collapsed} />
 
       {/* Resize handle */}
       {!collapsed && (
