@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { RefreshCw } from 'lucide-react';
 import { ClaudeUsageModal } from './ClaudeUsageModal';
 
 interface UsageResult {
@@ -38,6 +39,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
   const [usage, setUsage] = useState<UsageResult | null>(null);
   const [settings, setSettings] = useState<UsageSettings>({ window_hours: 5, limit: 0 });
   const [showModal, setShowModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Live-updating now_secs for countdown
   const [tickSecs, setTickSecs] = useState(() => Math.floor(Date.now() / 1000));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -69,6 +71,16 @@ export function ClaudeUsageBar({ collapsed }: Props) {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await invoke('invalidate_usage_cache');
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function onSettingsSaved(s: UsageSettings) {
     setSettings(s);
@@ -143,10 +155,20 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           <span className="text-[#888] text-xs">
             Claude · last {window_hours}h
           </span>
-          <span className="text-[#555] text-xs font-mono">
-            {formatTokens(tokens_in_window)}
-            {settings.limit > 0 && ` / ${formatTokens(settings.limit)}`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[#555] text-xs font-mono">
+              {formatTokens(tokens_in_window)}
+              {settings.limit > 0 && ` / ${formatTokens(settings.limit)}`}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+              disabled={refreshing}
+              className="text-[#444] hover:text-[#888] transition-colors disabled:opacity-40"
+              title="Refresh usage"
+            >
+              <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
         <div className="w-full h-1.5 rounded-full bg-[#2a2a2a] overflow-hidden">
           {tokens_in_window > 0 && (

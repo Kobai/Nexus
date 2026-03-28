@@ -28,7 +28,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
-  const [open, setOpen] = useState(depth === 0);
+  const [open, setOpen] = useState(false);
 
   if (!node.is_dir) {
     return (

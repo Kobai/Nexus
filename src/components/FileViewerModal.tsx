@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -27,6 +27,12 @@ interface Props {
 export function FileViewerModal({ path, onClose }: Props) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const filename = path.split('/').pop() ?? path;
   const isMarkdown = filename.endsWith('.md') || filename.endsWith('.mdx');
@@ -35,13 +41,85 @@ export function FileViewerModal({ path, onClose }: Props) {
     invoke<string>('read_file', { path })
       .then(setContent)
       .catch((e) => setError(String(e)));
+  }, [path]);
 
+  // Keyboard handling
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchVisible(true);
+        // defer focus so the input is mounted
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        }, 0);
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (query) {
+          setQuery('');
+          setSearchVisible(false);
+        } else {
+          onClose();
+        }
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [path]);
+  }, [path, query]);
+
+  // Matched lines (1-indexed) in order
+  const matchedLines = useMemo(() => {
+    if (!query || !content) return [];
+    const lower = query.toLowerCase();
+    return content.split('\n').reduce<number[]>((acc, line, i) => {
+      if (line.toLowerCase().includes(lower)) acc.push(i + 1);
+      return acc;
+    }, []);
+  }, [query, content]);
+
+  // Total individual occurrences
+  const totalMatches = useMemo(() => {
+    if (!query || !content) return 0;
+    const lower = query.toLowerCase();
+    const src = content.toLowerCase();
+    let count = 0, pos = 0;
+    while ((pos = src.indexOf(lower, pos)) !== -1) { count++; pos += lower.length; }
+    return count;
+  }, [query, content]);
+
+  const matchLineSet = useMemo(() => new Set(matchedLines), [matchedLines]);
+  const clampedIndex = matchedLines.length > 0 ? matchIndex % matchedLines.length : 0;
+  const currentLine = matchedLines[clampedIndex] ?? null;
+
+  // Reset index when query changes
+  useEffect(() => { setMatchIndex(0); }, [query]);
+
+  // Scroll to current matched line
+  useEffect(() => {
+    if (!contentRef.current || !currentLine || !content) return;
+    const totalLines = content.split('\n').length;
+    const ratio = (currentLine - 1) / Math.max(totalLines - 1, 1);
+    const el = contentRef.current;
+    el.scrollTop = ratio * (el.scrollHeight - el.clientHeight);
+  }, [clampedIndex, matchedLines]);
+
+  function navigate(dir: 1 | -1) {
+    if (matchedLines.length === 0) return;
+    setMatchIndex((i) => (i + dir + matchedLines.length) % matchedLines.length);
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      navigate(e.shiftKey ? -1 : 1);
+    }
+    if (e.key === 'Escape') {
+      setQuery('');
+      setSearchVisible(false);
+    }
+  }
 
   return (
     <div
@@ -52,16 +130,72 @@ export function FileViewerModal({ path, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a] shrink-0">
           <span className="text-sm font-mono text-[#ccc] truncate">{filename}</span>
-          <button
-            onClick={onClose}
-            className="text-[#555] hover:text-[#aaa] transition-colors ml-4 shrink-0"
-          >
-            <X size={15} />
-          </button>
+          <div className="flex items-center gap-2 ml-4 shrink-0">
+            <button
+              onClick={() => {
+                setSearchVisible((v) => !v);
+                if (!searchVisible) {
+                  setTimeout(() => {
+                    searchInputRef.current?.focus();
+                    searchInputRef.current?.select();
+                  }, 0);
+                }
+              }}
+              className={`transition-colors ${searchVisible ? 'text-[#aaa]' : 'text-[#555] hover:text-[#aaa]'}`}
+              title="Search (⌘F)"
+            >
+              <Search size={14} />
+            </button>
+            <button onClick={onClose} className="text-[#555] hover:text-[#aaa] transition-colors">
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
+        {/* Search bar */}
+        {searchVisible && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-[#2a2a2a] bg-[#1a1a1a] shrink-0">
+            <Search size={13} className="text-[#555] shrink-0" />
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search…"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 bg-transparent text-sm text-[#d4d4d4] placeholder-[#444] outline-none"
+            />
+            {query && (
+              <span className="text-xs text-[#555] font-mono shrink-0">
+                {totalMatches === 0
+                  ? 'no matches'
+                  : `${clampedIndex + 1} / ${totalMatches}`}
+              </span>
+            )}
+            <div className="flex gap-1">
+              <button
+                onClick={() => navigate(-1)}
+                disabled={matchedLines.length === 0}
+                className="text-[#555] hover:text-[#aaa] disabled:opacity-30 px-1 text-xs"
+                title="Previous (⇧↵)"
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => navigate(1)}
+                disabled={matchedLines.length === 0}
+                className="text-[#555] hover:text-[#aaa] disabled:opacity-30 px-1 text-xs"
+                title="Next (↵)"
+              >
+                ↓
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="flex-1 overflow-auto">
+        <div ref={contentRef} className="flex-1 overflow-auto">
           {error ? (
             <div className="p-4 text-xs text-[#f87171]">{error}</div>
           ) : content === null ? (
@@ -117,6 +251,18 @@ export function FileViewerModal({ path, onClose }: Props) {
               customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6' }}
               showLineNumbers
               lineNumberStyle={{ color: '#3a3a3a', minWidth: '2.5em' }}
+              wrapLines
+              lineProps={(lineNumber) => {
+                if (!matchLineSet.has(lineNumber)) return {};
+                return {
+                  style: {
+                    display: 'block',
+                    backgroundColor: lineNumber === currentLine
+                      ? 'rgba(250, 200, 50, 0.2)'
+                      : 'rgba(250, 200, 50, 0.08)',
+                  },
+                };
+              }}
             >
               {content}
             </SyntaxHighlighter>

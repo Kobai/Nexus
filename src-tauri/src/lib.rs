@@ -1078,6 +1078,13 @@ fn set_usage_settings(
     Ok(())
 }
 
+#[tauri::command]
+fn invalidate_usage_cache(cache: State<UsageCache>) -> Result<(), String> {
+    let mut guard = cache.0.lock().map_err(|e| e.to_string())?;
+    *guard = None;
+    Ok(())
+}
+
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -1122,6 +1129,7 @@ pub fn run() {
             get_claude_usage,
             get_usage_settings,
             set_usage_settings,
+            invalidate_usage_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
