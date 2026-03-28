@@ -58,13 +58,13 @@ export function MainWindow() {
         )}
 
         {!activeSessionId && !hasAnySessions && (
-          <div className="flex items-center justify-center h-full text-[#555]">
+          <div className="flex items-center justify-center h-full text-[#3d4e63]">
             <p>Select or create a session to get started.</p>
           </div>
         )}
 
         {activeSessionId && activeTabs.length === 0 && (
-          <div className="flex items-center justify-center h-full text-[#555]">
+          <div className="flex items-center justify-center h-full text-[#3d4e63]">
             <p>No terminals open.</p>
           </div>
         )}

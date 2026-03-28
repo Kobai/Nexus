@@ -67,10 +67,10 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group border border-[#2a2a2a] rounded mx-1 my-0.5 border-l-2 ${
+        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group border border-[#1a2235] rounded mx-1 my-0.5 border-l-2 ${
           isActive
-            ? 'bg-[#2a2a2a] border-l-blue-500 text-[#d4d4d4]'
-            : 'text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e]'
+            ? 'bg-[#1a2235] border-l-blue-500 text-[#e2e8f0]'
+            : 'text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#111827]'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
@@ -154,7 +154,7 @@ function ProjectItem({
         ref={setNodeRef}
         style={style}
         title={project.name}
-        className="w-12 h-12 flex items-center justify-center text-[#888] hover:text-[#d4d4d4] hover:bg-[#252525] cursor-pointer text-lg font-semibold"
+        className="w-12 h-12 flex items-center justify-center text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#161d2e] cursor-pointer text-lg font-semibold"
         {...attributes}
         {...listeners}
       >
@@ -165,9 +165,9 @@ function ProjectItem({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="border border-[#2e2e2e] rounded mx-2 my-1 pb-1">
+    <div ref={setNodeRef} style={style} className="border border-[#1a2740] rounded mx-2 my-1 pb-1">
       <div
-        className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#1e1e1e]"
+        className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#111827]"
         {...attributes}
         {...listeners}
         onContextMenu={(e) => {
@@ -179,12 +179,12 @@ function ProjectItem({
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
-            className="text-[#555] hover:text-[#d4d4d4] text-xs w-4 flex-shrink-0"
+            className="text-[#3d4e63] hover:text-[#e2e8f0] text-xs w-4 flex-shrink-0"
           >
             {collapsed ? '▶' : '▼'}
           </button>
           <Folder size={16} className="text-[#8be9fd]/50" />
-          <span className="text-[#d4d4d4] text-sm font-medium truncate">{project.name}</span>
+          <span className="text-[#e2e8f0] text-sm font-medium truncate">{project.name}</span>
         </div>
         <div className="opacity-0 group-hover:opacity-100">
           <button
@@ -206,12 +206,12 @@ function ProjectItem({
           />
           <div
             ref={contextMenuRef}
-            className="fixed z-50 bg-[#252525] border border-[#3a3a3a] rounded shadow-xl py-1 min-w-[160px]"
+            className="fixed z-50 bg-[#161d2e] border border-[#1e2d45] rounded shadow-xl py-1 min-w-[160px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
               onClick={(e) => { e.stopPropagation(); setContextMenu(null); setConfirmRemove(true); }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-[#2a2a2a] hover:text-red-300"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-[#1a2235] hover:text-red-300"
             >
               <Trash2 size={14} />
               Remove project
@@ -303,15 +303,15 @@ export function Sidebar() {
 
   return (
     <div
-      className="flex-shrink-0 bg-[#1a1a1a] border-r border-[#3a3a3a] flex flex-col relative"
+      className="flex-shrink-0 bg-[#0d1117] border-r border-[#1e2d45] flex flex-col relative"
       style={{ width: effectiveWidth }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#3a3a3a]">
-        {!collapsed && <span className="text-[#d4d4d4] text-sm font-semibold">Nexus</span>}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e2d45]">
+        {!collapsed && <span className="text-[#e2e8f0] text-sm font-semibold">Projects</span>}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="text-[#555] hover:text-[#d4d4d4] text-xs"
+          className="text-[#3d4e63] hover:text-[#e2e8f0] text-xs"
           title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? '▶' : '◀'}
@@ -330,10 +330,10 @@ export function Sidebar() {
       </div>
 
       {/* Add Project */}
-      <div className="border-t border-[#3a3a3a] p-2">
+      <div className="border-t border-[#1e2d45] p-2">
         <button
           onClick={() => setShowAddProject(true)}
-          className="w-full text-[#555] hover:text-[#d4d4d4] text-sm py-1 hover:bg-[#252525] rounded"
+          className="w-full text-[#3d4e63] hover:text-[#e2e8f0] text-sm py-1 hover:bg-[#161d2e] rounded"
           title="Add project"
         >
           {collapsed ? '+' : '+ Add Project'}

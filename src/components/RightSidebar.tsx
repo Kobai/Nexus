@@ -24,8 +24,8 @@ function IconButton({ icon: Icon, active, onClick, title }: IconButtonProps) {
       title={title}
       className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
         active
-          ? 'text-[#ddd] bg-[#2a2a2a]'
-          : 'text-[#555] hover:text-[#999]'
+          ? 'text-[#e2e8f0] bg-[#1a2235]'
+          : 'text-[#3d4e63] hover:text-[#7889a0]'
       }`}
     >
       <Icon size={16} />
@@ -87,7 +87,7 @@ export function RightSidebar() {
   const expanded = activePanel !== null && activeProjectId !== null;
 
   return (
-    <div className="flex h-full border-l border-[#2a2a2a] shrink-0">
+    <div className="flex h-full border-l border-[#1a2235] shrink-0">
       {/* Content panel */}
       <div
         ref={panelRef}
@@ -98,7 +98,7 @@ export function RightSidebar() {
         {expanded && (
           <div
             onMouseDown={onDragMouseDown}
-            className="absolute left-0 top-0 w-1 h-full cursor-col-resize z-10 hover:bg-[#4a4a4a] transition-colors"
+            className="absolute left-0 top-0 w-1 h-full cursor-col-resize z-10 hover:bg-[#253047] transition-colors"
           />
         )}
         <div className="flex-1 overflow-hidden">
@@ -112,7 +112,7 @@ export function RightSidebar() {
       </div>
 
       {/* Icon rail */}
-      <div className="w-12 flex flex-col items-center pt-3 gap-2 border-l border-[#2a2a2a] shrink-0">
+      <div className="w-12 flex flex-col items-center pt-3 gap-2 border-l border-[#1a2235] shrink-0">
         <IconButton
           icon={GitBranch}
           active={activePanel === 'git'}

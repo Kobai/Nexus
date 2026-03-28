@@ -7,12 +7,12 @@ import { useTerminalStore } from '../store/terminalStore';
 import '@xterm/xterm/css/xterm.css';
 
 const darkTheme = {
-  background: '#1a1a1a',
-  foreground: '#d4d4d4',
-  cursor: '#d4d4d4',
-  cursorAccent: '#1a1a1a',
-  black: '#1a1a1a',
-  brightBlack: '#555555',
+  background: '#0d1117',
+  foreground: '#e2e8f0',
+  cursor: '#e2e8f0',
+  cursorAccent: '#0d1117',
+  black: '#0d1117',
+  brightBlack: '#4a5a72',
   red: '#cd3131',
   brightRed: '#f14c4c',
   green: '#0dbc79',
@@ -25,8 +25,8 @@ const darkTheme = {
   brightMagenta: '#d670d6',
   cyan: '#11a8cd',
   brightCyan: '#29b8db',
-  white: '#e5e5e5',
-  brightWhite: '#e5e5e5',
+  white: '#eaf0f8',
+  brightWhite: '#eaf0f8',
 };
 
 interface Props {

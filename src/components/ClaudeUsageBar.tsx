@@ -117,7 +117,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
     return (
       <div className="px-2 py-2">
         <div
-          className="w-full h-1.5 rounded-full bg-[#2a2a2a] cursor-pointer overflow-hidden"
+          className="w-full h-1.5 rounded-full bg-[#1a2235] cursor-pointer overflow-hidden"
           title={
             tokens_in_window > 0
               ? `${formatTokens(tokens_in_window)} tokens · last ${window_hours}h${countdownLabel ? ` · resets in ${countdownLabel}` : ''}`
@@ -152,25 +152,25 @@ export function ClaudeUsageBar({ collapsed }: Props) {
         title="Click to configure"
       >
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[#888] text-xs">
+          <span className="text-[#8896ab] text-xs">
             Claude · last {window_hours}h
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-[#555] text-xs font-mono">
+            <span className="text-[#3d4e63] text-xs font-mono">
               {formatTokens(tokens_in_window)}
               {settings.limit > 0 && ` / ${formatTokens(settings.limit)}`}
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
               disabled={refreshing}
-              className="text-[#444] hover:text-[#888] transition-colors disabled:opacity-40"
+              className="text-[#253047] hover:text-[#8896ab] transition-colors disabled:opacity-40"
               title="Refresh usage"
             >
               <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-[#2a2a2a] overflow-hidden">
+        <div className="w-full h-1.5 rounded-full bg-[#1a2235] overflow-hidden">
           {tokens_in_window > 0 && (
             <div
               className={`h-full rounded-full transition-all ${barColor}`}
@@ -179,7 +179,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           )}
         </div>
         {countdownLabel && (
-          <p className="text-[#444] text-xs mt-1">
+          <p className="text-[#253047] text-xs mt-1">
             Resets in {countdownLabel}
           </p>
         )}

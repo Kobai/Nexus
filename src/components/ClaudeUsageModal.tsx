@@ -59,23 +59,23 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[#252525] border border-[#3a3a3a] rounded-lg p-6 w-[420px] shadow-xl">
-        <h2 className="text-[#d4d4d4] font-semibold text-base mb-4">Claude Usage Monitor</h2>
+      <div className="bg-[#161d2e] border border-[#1e2d45] rounded-lg p-6 w-[420px] shadow-xl">
+        <h2 className="text-[#e2e8f0] font-semibold text-base mb-4">Claude Usage Monitor</h2>
 
         {/* Current window stats */}
-        <div className="mb-5 bg-[#1e1e1e] rounded p-3 space-y-1">
+        <div className="mb-5 bg-[#111827] rounded p-3 space-y-1">
           <div className="flex justify-between">
-            <span className="text-[#888] text-xs">Tokens this window</span>
-            <span className="text-[#d4d4d4] text-xs font-mono">{formatTokens(tokensInWindow)}</span>
+            <span className="text-[#8896ab] text-xs">Tokens this window</span>
+            <span className="text-[#e2e8f0] text-xs font-mono">{formatTokens(tokensInWindow)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#888] text-xs">Window size</span>
-            <span className="text-[#d4d4d4] text-xs font-mono">{settings.window_hours}h rolling</span>
+            <span className="text-[#8896ab] text-xs">Window size</span>
+            <span className="text-[#e2e8f0] text-xs font-mono">{settings.window_hours}h rolling</span>
           </div>
           {usage?.oldest_in_window_secs !== null && usage?.oldest_in_window_secs !== undefined && (
             <div className="flex justify-between">
-              <span className="text-[#888] text-xs">Next reset</span>
-              <span className="text-[#d4d4d4] text-xs font-mono">
+              <span className="text-[#8896ab] text-xs">Next reset</span>
+              <span className="text-[#e2e8f0] text-xs font-mono">
                 {new Date(
                   (usage.oldest_in_window_secs + settings.window_hours * 3600) * 1000
                 ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -85,9 +85,9 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
         </div>
 
         {/* Window hours config */}
-        <label className="block text-[#888] text-xs mb-1">
+        <label className="block text-[#8896ab] text-xs mb-1">
           Window size (hours)
-          <span className="text-[#555] ml-1">— Claude Code uses a 5h rolling window</span>
+          <span className="text-[#3d4e63] ml-1">— Claude Code uses a 5h rolling window</span>
         </label>
         <input
           type="number"
@@ -95,22 +95,22 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
           onChange={(e) => setWindowHours(e.target.value)}
           min={1}
           max={24}
-          className="w-full bg-[#1e1e1e] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500 mb-4"
+          className="w-full bg-[#111827] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none focus:border-blue-500 mb-4"
         />
 
         {/* Optional token limit */}
-        <label className="block text-[#888] text-xs mb-1">
+        <label className="block text-[#8896ab] text-xs mb-1">
           Token limit per window
-          <span className="text-[#555] ml-1">— optional, for % bar</span>
+          <span className="text-[#3d4e63] ml-1">— optional, for % bar</span>
         </label>
         <input
           type="number"
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
           placeholder="Leave blank to show raw count only"
-          className="w-full bg-[#1e1e1e] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500 mb-1"
+          className="w-full bg-[#111827] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none focus:border-blue-500 mb-1"
         />
-        <p className="text-[#555] text-xs mb-4">
+        <p className="text-[#3d4e63] text-xs mb-4">
           Anthropic doesn't publish Claude Max token limits — set a number that matches your observed cutoff.
         </p>
 
@@ -119,7 +119,7 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-sm rounded bg-[#3a3a3a] text-[#d4d4d4] hover:bg-[#444] transition-colors"
+            className="px-4 py-1.5 text-sm rounded bg-[#1e2d45] text-[#e2e8f0] hover:bg-[#253047] transition-colors"
           >
             Cancel
           </button>

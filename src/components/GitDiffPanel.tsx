@@ -92,18 +92,18 @@ function FileSection({ file }: { file: DiffFile }) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="border border-[#2e2e2e] rounded-md overflow-hidden mb-3">
+    <div className="border border-[#1a2740] rounded-md overflow-hidden mb-3">
       {/* File header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-[#222] hover:bg-[#272727] transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-[#0d1117] hover:bg-[#131924] transition-colors text-left"
       >
         {open ? (
-          <ChevronDown size={11} className="text-[#555] shrink-0" />
+          <ChevronDown size={11} className="text-[#3d4e63] shrink-0" />
         ) : (
-          <ChevronRight size={11} className="text-[#555] shrink-0" />
+          <ChevronRight size={11} className="text-[#3d4e63] shrink-0" />
         )}
-        <span className="text-[11px] font-mono text-[#ccc] truncate flex-1 min-w-0">{file.filename}</span>
+        <span className="text-[11px] font-mono text-[#c8d6e5] truncate flex-1 min-w-0">{file.filename}</span>
         <span className="text-[10px] text-[#4ec994] shrink-0">+{file.additions}</span>
         <span className="text-[10px] text-[#f87171] shrink-0 ml-1">-{file.deletions}</span>
       </button>
@@ -111,7 +111,7 @@ function FileSection({ file }: { file: DiffFile }) {
       {open && file.hunks.map((hunk, hi) => (
         <div key={hi}>
           {/* Hunk header */}
-          <div className="px-3 py-1 bg-[#1e2433] border-t border-[#2e2e2e]">
+          <div className="px-3 py-1 bg-[#1e2433] border-t border-[#1a2740]">
             <span className="text-[10px] text-[#5b7ab8] font-mono">
               {hunk.header ? `… ${hunk.header}` : '…'}
             </span>
@@ -131,12 +131,12 @@ function FileSection({ file }: { file: DiffFile }) {
                   <span className={`select-none w-8 shrink-0 text-right pr-2 border-r ${
                     isAdd ? 'text-[#2d6e47] border-[#1a4028]' :
                     isRemove ? 'text-[#7a2e2e] border-[#4a1a1a]' :
-                    'text-[#3a3a3a] border-[#2a2a2a]'
+                    'text-[#1e2d45] border-[#1a2235]'
                   }`}>
                     {line.lineNo}
                   </span>
                   <span className={`pl-2 pr-3 whitespace-pre-wrap break-all ${
-                    isAdd ? 'text-[#4ec994]' : isRemove ? 'text-[#f87171]' : 'text-[#999]'
+                    isAdd ? 'text-[#4ec994]' : isRemove ? 'text-[#f87171]' : 'text-[#7889a0]'
                   }`}>
                     <span className={`mr-1 ${isAdd ? 'text-[#2d6e47]' : isRemove ? 'text-[#7a2e2e]' : 'opacity-0'}`}>
                       {isAdd ? '+' : isRemove ? '−' : '+'}
@@ -183,11 +183,11 @@ export function GitDiffPanel({ projectId }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a2a] shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2235] shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#888]">Changes</span>
+          <span className="text-xs font-medium text-[#8896ab]">Changes</span>
           {files && files.length > 0 && (
-            <span className="text-[10px] text-[#555]">
+            <span className="text-[10px] text-[#3d4e63]">
               {(visibleFiles ?? []).length}{query ? `/${files.length}` : ''} file{files.length !== 1 ? 's' : ''}
               <span className="text-[#2d6e47] ml-1.5">+{totalAdd}</span>
               <span className="text-[#7a2e2e] ml-1">-{totalDel}</span>
@@ -196,14 +196,14 @@ export function GitDiffPanel({ projectId }: Props) {
         </div>
         <button
           onClick={fetchDiff}
-          className="text-[#555] hover:text-[#999] transition-colors"
+          className="text-[#3d4e63] hover:text-[#7889a0] transition-colors"
           title="Refresh"
         >
           <RefreshCw size={11} />
         </button>
       </div>
 
-      <div className="px-2 py-1.5 border-b border-[#2a2a2a] shrink-0">
+      <div className="px-2 py-1.5 border-b border-[#1a2235] shrink-0">
         <div className="relative flex items-center">
           <input
             type="text"
@@ -212,12 +212,12 @@ export function GitDiffPanel({ projectId }: Props) {
             placeholder="Filter files..."
             autoCorrect="off"
             spellCheck={false}
-            className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#ccc] placeholder-[#555] outline-none focus:border-[#555]"
+            className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-2 py-1 text-xs text-[#c8d6e5] placeholder-[#3d4e63] outline-none focus:border-[#3d4e63]"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-1.5 text-[#555] hover:text-[#999]"
+              className="absolute right-1.5 text-[#3d4e63] hover:text-[#7889a0]"
             >
               <X size={10} />
             </button>
@@ -226,11 +226,11 @@ export function GitDiffPanel({ projectId }: Props) {
       </div>
 
       <div className="flex-1 overflow-auto p-3">
-        {loading && <div className="text-xs text-[#444] py-2">Loading...</div>}
+        {loading && <div className="text-xs text-[#253047] py-2">Loading...</div>}
         {error && <div className="text-xs text-[#f87171] py-2">{error}</div>}
         {!loading && !error && visibleFiles !== null && (
           visibleFiles!.length === 0
-            ? <div className="text-xs text-[#444] py-2">{query ? 'No files match' : 'No changes'}</div>
+            ? <div className="text-xs text-[#253047] py-2">{query ? 'No files match' : 'No changes'}</div>
             : visibleFiles!.map((f, i) => <FileSection key={i} file={f} />)
         )}
       </div>

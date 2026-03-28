@@ -55,13 +55,13 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
       onClick={onActivate}
       className={`flex items-center gap-1 px-3 py-1.5 text-sm select-none cursor-pointer border-b-2 ${
         isActive
-          ? 'border-blue-500 text-[#d4d4d4] bg-[#252525]'
-          : 'border-transparent text-[#888] hover:text-[#d4d4d4] hover:bg-[#1e1e1e]'
+          ? 'border-blue-500 text-[#e2e8f0] bg-[#161d2e]'
+          : 'border-transparent text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#111827]'
       }`}
     >
       {editing ? (
         <input
-          className="bg-transparent outline-none text-[#d4d4d4] w-20"
+          className="bg-transparent outline-none text-[#e2e8f0] w-20"
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={commitRename}
@@ -78,7 +78,7 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
       )}
       <button
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="ml-1 text-[#555] hover:text-[#d4d4d4] leading-none"
+        className="ml-1 text-[#3d4e63] hover:text-[#e2e8f0] leading-none"
       >
         ×
       </button>
@@ -129,7 +129,7 @@ export function TabBar({ sessionId }: Props) {
   }
 
   return (
-    <div className="flex items-end bg-[#1a1a1a] border-b border-[#3a3a3a] overflow-x-auto">
+    <div className="flex items-end bg-[#0d1117] border-b border-[#1e2d45] overflow-x-auto">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
           {tabs.map((tab) => (
@@ -146,7 +146,7 @@ export function TabBar({ sessionId }: Props) {
       </DndContext>
       <button
         onClick={handleAddTab}
-        className="px-3 py-1.5 text-[#555] hover:text-[#d4d4d4] text-lg leading-none"
+        className="px-3 py-1.5 text-[#3d4e63] hover:text-[#e2e8f0] text-lg leading-none"
         title="New tab"
       >
         +

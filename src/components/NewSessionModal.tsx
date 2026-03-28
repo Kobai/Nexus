@@ -67,16 +67,16 @@ export function NewSessionModal({ projectId, onClose }: Props) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[#252525] border border-[#3a3a3a] rounded-lg p-6 w-[480px] shadow-xl">
-        <h2 className="text-[#d4d4d4] font-semibold text-base mb-4">New Session</h2>
+      <div className="bg-[#161d2e] border border-[#1e2d45] rounded-lg p-6 w-[480px] shadow-xl">
+        <h2 className="text-[#e2e8f0] font-semibold text-base mb-4">New Session</h2>
 
         <div className="space-y-3">
           <div>
-            <label className="text-[#888] text-xs block mb-1">Session name</label>
+            <label className="text-[#8896ab] text-xs block mb-1">Session name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500"
+              className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none focus:border-blue-500"
               placeholder="my-feature"
               autoFocus
               autoCorrect="off"
@@ -85,13 +85,13 @@ export function NewSessionModal({ projectId, onClose }: Props) {
           </div>
 
           <div>
-            <label className="text-[#888] text-xs block mb-1">Branch mode</label>
+            <label className="text-[#8896ab] text-xs block mb-1">Branch mode</label>
             <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-sm text-[#d4d4d4] cursor-pointer">
+              <label className="flex items-center gap-1.5 text-sm text-[#e2e8f0] cursor-pointer">
                 <input type="radio" checked={branchMode === 'new'} onChange={() => setBranchMode('new')} />
                 New branch
               </label>
-              <label className="flex items-center gap-1.5 text-sm text-[#d4d4d4] cursor-pointer">
+              <label className="flex items-center gap-1.5 text-sm text-[#e2e8f0] cursor-pointer">
                 <input type="radio" checked={branchMode === 'existing'} onChange={() => setBranchMode('existing')} />
                 Existing branch
               </label>
@@ -101,27 +101,27 @@ export function NewSessionModal({ projectId, onClose }: Props) {
           {branchMode === 'new' && (
             <>
               <div>
-                <label className="text-[#888] text-xs block mb-1">Base branch</label>
+                <label className="text-[#8896ab] text-xs block mb-1">Base branch</label>
                 <select
                   value={baseBranch}
                   onChange={(e) => setBaseBranch(e.target.value)}
-                  className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none"
+                  className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none"
                 >
                   {branches.map((b) => <option key={b}>{b}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[#888] text-xs block mb-1">New branch name</label>
+                <label className="text-[#8896ab] text-xs block mb-1">New branch name</label>
                 <input
                   value={newBranchName}
                   onChange={(e) => setNewBranchName(e.target.value)}
-                  className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none focus:border-blue-500"
+                  className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none focus:border-blue-500"
                   placeholder="feature/my-change"
                   autoCorrect="off"
                   spellCheck={false}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-[#d4d4d4] cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-[#e2e8f0] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={useWorktree}
@@ -134,11 +134,11 @@ export function NewSessionModal({ projectId, onClose }: Props) {
 
           {branchMode === 'existing' && (
             <div>
-              <label className="text-[#888] text-xs block mb-1">Select branch</label>
+              <label className="text-[#8896ab] text-xs block mb-1">Select branch</label>
               <select
                 value={existingBranch}
                 onChange={(e) => setExistingBranch(e.target.value)}
-                className="w-full bg-[#1a1a1a] border border-[#3a3a3a] rounded px-3 py-1.5 text-sm text-[#d4d4d4] outline-none"
+                className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-3 py-1.5 text-sm text-[#e2e8f0] outline-none"
               >
                 {branches.map((b) => <option key={b}>{b}</option>)}
               </select>
@@ -151,7 +151,7 @@ export function NewSessionModal({ projectId, onClose }: Props) {
         <div className="flex justify-end gap-2 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-sm rounded bg-[#3a3a3a] text-[#d4d4d4] hover:bg-[#444] transition-colors"
+            className="px-4 py-1.5 text-sm rounded bg-[#1e2d45] text-[#e2e8f0] hover:bg-[#253047] transition-colors"
           >
             Cancel
           </button>

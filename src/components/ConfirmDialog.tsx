@@ -19,13 +19,13 @@ export function ConfirmDialog({
 }: Props) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[#252525] border border-[#3a3a3a] rounded-lg p-6 w-[400px] shadow-xl">
-        <h2 className="text-[#d4d4d4] font-semibold text-base mb-2">{title}</h2>
-        <p className="text-[#888] text-sm mb-6">{message}</p>
+      <div className="bg-[#161d2e] border border-[#1e2d45] rounded-lg p-6 w-[400px] shadow-xl">
+        <h2 className="text-[#e2e8f0] font-semibold text-base mb-2">{title}</h2>
+        <p className="text-[#8896ab] text-sm mb-6">{message}</p>
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-1.5 text-sm rounded bg-[#3a3a3a] text-[#d4d4d4] hover:bg-[#444] transition-colors"
+            className="px-4 py-1.5 text-sm rounded bg-[#1e2d45] text-[#e2e8f0] hover:bg-[#253047] transition-colors"
           >
             Cancel
           </button>
