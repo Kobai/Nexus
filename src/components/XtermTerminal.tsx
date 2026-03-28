@@ -32,10 +32,9 @@ const darkTheme = {
 interface Props {
   tabId: string;
   sessionId: string;
-  isActive: boolean;
 }
 
-export function XtermTerminal({ tabId, isActive }: Props) {
+export function XtermTerminal({ tabId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { registerTerminal, unregisterTerminal } = useTerminalStore();
 
@@ -47,6 +46,7 @@ export function XtermTerminal({ tabId, isActive }: Props) {
       fontSize: 11,
       theme: darkTheme,
       cursorBlink: true,
+      allowTransparency: false,
     });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);

@@ -50,7 +50,6 @@ export function MainWindow() {
                 <XtermTerminal
                   tabId={tab.id}
                   sessionId={sessionId}
-                  isActive={visible}
                 />
               </div>
             );
