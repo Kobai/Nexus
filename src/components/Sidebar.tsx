@@ -67,19 +67,20 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs font-medium group rounded-md mx-1 my-0.5 transition-colors border-l-2 ${
+        className={`flex items-center gap-2 pl-3 pr-2 py-1 mx-1 my-0.5 rounded-md cursor-pointer text-xs transition-colors group ${
           isActive
-            ? 'bg-cafe-primary border-l-cafe-primary text-white'
-            : 'border-l-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
+            ? 'bg-cafe-primary/10 text-cafe-primary font-semibold'
+            : 'text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
-        <span className="truncate">{session.name}</span>
+        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+          isActive ? 'bg-cafe-primary' : 'bg-cafe-border group-hover:bg-cafe-muted'
+        }`} />
+        <span className="truncate flex-1">{session.name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
-          className={`opacity-0 group-hover:opacity-100 text-xs px-1 transition-colors ${
-            isActive ? 'text-white/60 hover:text-white' : 'text-cafe-danger hover:text-red-700'
-          }`}
+          className="opacity-0 group-hover:opacity-100 text-cafe-danger hover:text-red-700 text-xs px-1 transition-colors"
           title="Stop session"
         >
           ■
@@ -222,7 +223,7 @@ function ProjectItem({
       )}
 
       {!collapsed && (
-        <div className="pl-3 mt-0.5">
+        <div className="mt-1 ml-5 border-l-2 border-cafe-border/50 pb-0.5">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSessionDragEnd}>
             <SortableContext items={sessions.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               {sessions.map((session) => (
@@ -231,7 +232,7 @@ function ProjectItem({
             </SortableContext>
           </DndContext>
           {sessions.length === 0 && (
-            <p className="text-cafe-border text-xs px-3 py-1 italic">No sessions</p>
+            <p className="pl-3 py-1 text-cafe-border text-xs italic">No sessions</p>
           )}
         </div>
       )}

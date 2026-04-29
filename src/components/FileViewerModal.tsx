@@ -4,7 +4,7 @@ import { X, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 function getLanguage(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
@@ -214,8 +214,8 @@ export function FileViewerModal({ path, onClose }: Props) {
                     return match ? (
                       <SyntaxHighlighter
                         language={match[1]}
-                        style={oneDark}
-                        customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px' }}
+                        style={oneLight}
+                        customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px', background: '#EDE8E3' }}
                       >
                         {String(children).replace(/\n$/, '')}
                       </SyntaxHighlighter>
@@ -241,10 +241,10 @@ export function FileViewerModal({ path, onClose }: Props) {
           ) : (
             <SyntaxHighlighter
               language={getLanguage(filename)}
-              style={oneDark}
-              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0 }}
+              style={oneLight}
+              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0, background: '#F9F7F5' }}
               showLineNumbers
-              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em' }}
+              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em', background: '#EDE8E3' }}
               wrapLines
               lineProps={(lineNumber) => {
                 if (!matchLineSet.has(lineNumber)) return {};
