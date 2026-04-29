@@ -25,7 +25,6 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-/** Returns "Xh Ym" or "Xm" remaining until `resetAt` (unix secs). */
 function formatCountdown(resetAt: number, nowSecs: number): string {
   const remaining = Math.max(0, resetAt - nowSecs);
   const h = Math.floor(remaining / 3600);
@@ -40,7 +39,6 @@ export function ClaudeUsageBar({ collapsed }: Props) {
   const [settings, setSettings] = useState<UsageSettings>({ window_hours: 5, limit: 0 });
   const [showModal, setShowModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  // Live-updating now_secs for countdown
   const [tickSecs, setTickSecs] = useState(() => Math.floor(Date.now() / 1000));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,9 +58,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
 
   useEffect(() => {
     loadData();
-    // Refresh usage data every 60 s
     const dataTimer = setInterval(loadData, 60_000);
-    // Tick countdown every 30 s
     intervalRef.current = setInterval(() => {
       setTickSecs(Math.floor(Date.now() / 1000));
     }, 30_000);
@@ -85,7 +81,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
   function onSettingsSaved(s: UsageSettings) {
     setSettings(s);
     setShowModal(false);
-    loadData(); // re-fetch with new window size
+    loadData();
   }
 
   const { tokens_in_window, oldest_in_window_secs, window_hours } = usage ?? {
@@ -100,12 +96,11 @@ export function ClaudeUsageBar({ collapsed }: Props) {
       : null;
 
   const barColor =
-    pct === null ? 'bg-blue-500'
-    : pct >= 90 ? 'bg-red-500'
-    : pct >= 70 ? 'bg-yellow-400'
-    : 'bg-green-500';
+    pct === null ? 'bg-cafe-primary'
+    : pct >= 90 ? 'bg-cafe-danger'
+    : pct >= 70 ? 'bg-cafe-warning'
+    : 'bg-cafe-success';
 
-  // Reset time = oldest message's timestamp + window duration
   const resetAt =
     oldest_in_window_secs !== null
       ? oldest_in_window_secs + window_hours * 3600
@@ -117,7 +112,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
     return (
       <div className="px-2 py-2">
         <div
-          className="w-full h-1.5 rounded-full bg-[#1a2235] cursor-pointer overflow-hidden"
+          className="w-full h-1 rounded-full bg-cafe-border cursor-pointer overflow-hidden"
           title={
             tokens_in_window > 0
               ? `${formatTokens(tokens_in_window)} tokens · last ${window_hours}h${countdownLabel ? ` · resets in ${countdownLabel}` : ''}`
@@ -128,7 +123,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           {tokens_in_window > 0 && (
             <div
               className={`h-full rounded-full transition-all ${barColor}`}
-              style={{ width: pct !== null ? `${pct}%` : '100%', opacity: pct === null ? 0.35 : 1 }}
+              style={{ width: pct !== null ? `${pct}%` : '100%', opacity: pct === null ? 0.4 : 1 }}
             />
           )}
         </div>
@@ -145,32 +140,32 @@ export function ClaudeUsageBar({ collapsed }: Props) {
   }
 
   return (
-    <div className="px-3 py-2">
+    <div className="px-3 py-2 border-t border-cafe-border">
       <div
         className="cursor-pointer"
         onClick={() => setShowModal(true)}
         title="Click to configure"
       >
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[#8896ab] text-xs">
-            Claude · last {window_hours}h
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-cafe-muted text-xs">
+            Claude · {window_hours}h
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[#3d4e63] text-xs font-mono">
+          <div className="flex items-center gap-1.5">
+            <span className="text-cafe-primary text-xs font-mono">
               {formatTokens(tokens_in_window)}
               {settings.limit > 0 && ` / ${formatTokens(settings.limit)}`}
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
               disabled={refreshing}
-              className="text-[#253047] hover:text-[#8896ab] transition-colors disabled:opacity-40"
+              className="text-cafe-border hover:text-cafe-muted transition-colors disabled:opacity-40"
               title="Refresh usage"
             >
               <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-[#1a2235] overflow-hidden">
+        <div className="w-full h-1 rounded-full bg-cafe-border overflow-hidden">
           {tokens_in_window > 0 && (
             <div
               className={`h-full rounded-full transition-all ${barColor}`}
@@ -179,7 +174,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           )}
         </div>
         {countdownLabel && (
-          <p className="text-[#253047] text-xs mt-1">
+          <p className="text-cafe-border text-xs mt-1">
             Resets in {countdownLabel}
           </p>
         )}

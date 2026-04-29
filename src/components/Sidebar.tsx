@@ -67,17 +67,19 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group border border-[#1a2235] rounded mx-1 my-0.5 border-l-2 ${
+        className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs font-medium group rounded-md mx-1 my-0.5 transition-colors border-l-2 ${
           isActive
-            ? 'bg-[#1a2235] border-l-blue-500 text-[#e2e8f0]'
-            : 'text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#111827]'
+            ? 'bg-cafe-primary border-l-cafe-primary text-white'
+            : 'border-l-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
         <span className="truncate">{session.name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
-          className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 text-xs px-1"
+          className={`opacity-0 group-hover:opacity-100 text-xs px-1 transition-colors ${
+            isActive ? 'text-white/60 hover:text-white' : 'text-cafe-danger hover:text-red-700'
+          }`}
           title="Stop session"
         >
           ■
@@ -154,20 +156,19 @@ function ProjectItem({
         ref={setNodeRef}
         style={style}
         title={project.name}
-        className="w-12 h-12 flex items-center justify-center text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#161d2e] cursor-pointer text-lg font-semibold"
+        className="w-12 h-12 flex items-center justify-center text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover cursor-pointer transition-colors rounded-md mx-auto my-0.5"
         {...attributes}
         {...listeners}
       >
-        {/* Folder icon for collapsed state */}
         <Folder size={16} />
       </div>
     );
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="border border-[#1a2740] rounded mx-2 my-1 pb-1">
+    <div ref={setNodeRef} style={style} className="mx-2 my-1">
       <div
-        className="flex items-center justify-between px-3 py-2 group cursor-pointer hover:bg-[#111827]"
+        className="flex items-center justify-between px-2 py-1.5 group cursor-pointer rounded-md hover:bg-cafe-hover transition-colors"
         {...attributes}
         {...listeners}
         onContextMenu={(e) => {
@@ -179,17 +180,17 @@ function ProjectItem({
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
-            className="text-[#3d4e63] hover:text-[#e2e8f0] text-xs w-4 flex-shrink-0"
+            className="text-cafe-border hover:text-cafe-muted text-xs w-4 flex-shrink-0 transition-colors"
           >
             {collapsed ? '▶' : '▼'}
           </button>
-          <Folder size={16} className="text-[#8be9fd]/50" />
-          <span className="text-[#e2e8f0] text-sm font-medium truncate">{project.name}</span>
+          <Folder size={14} className="text-cafe-primary/60 flex-shrink-0" />
+          <span className="text-cafe-text text-xs font-semibold truncate tracking-wide uppercase">{project.name}</span>
         </div>
-        <div className="opacity-0 group-hover:opacity-100">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => { e.stopPropagation(); setShowNewSession(true); }}
-            className="text-[#50fa7b] hover:text-[#50fa7b]/80 text-base leading-none px-0.5"
+            className="text-cafe-primary hover:text-cafe-primary/70 text-base leading-none px-0.5 font-light"
             title="New session"
           >
             +
@@ -206,14 +207,14 @@ function ProjectItem({
           />
           <div
             ref={contextMenuRef}
-            className="fixed z-50 bg-[#161d2e] border border-[#1e2d45] rounded shadow-xl py-1 min-w-[160px]"
+            className="fixed z-50 bg-cafe-surface border border-cafe-border rounded-lg shadow-lg py-1 min-w-[160px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
               onClick={(e) => { e.stopPropagation(); setContextMenu(null); setConfirmRemove(true); }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-[#1a2235] hover:text-red-300"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-cafe-danger hover:bg-cafe-hover transition-colors"
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
               Remove project
             </button>
           </div>
@@ -221,7 +222,7 @@ function ProjectItem({
       )}
 
       {!collapsed && (
-        <div className="pl-4">
+        <div className="pl-3 mt-0.5">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSessionDragEnd}>
             <SortableContext items={sessions.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               {sessions.map((session) => (
@@ -229,6 +230,9 @@ function ProjectItem({
               ))}
             </SortableContext>
           </DndContext>
+          {sessions.length === 0 && (
+            <p className="text-cafe-border text-xs px-3 py-1 italic">No sessions</p>
+          )}
         </div>
       )}
 
@@ -303,15 +307,19 @@ export function Sidebar() {
 
   return (
     <div
-      className="flex-shrink-0 bg-[#0d1117] border-r border-[#1e2d45] flex flex-col relative"
+      className="flex-shrink-0 bg-cafe-secondary border-r border-cafe-border flex flex-col relative"
       style={{ width: effectiveWidth }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e2d45]">
-        {!collapsed && <span className="text-[#e2e8f0] text-sm font-semibold">Projects</span>}
+      <div className="flex items-center justify-between px-3 py-3 border-b border-cafe-border">
+        {!collapsed && (
+          <span className="text-cafe-primary text-xs font-semibold tracking-widest uppercase">
+            Projects
+          </span>
+        )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="text-[#3d4e63] hover:text-[#e2e8f0] text-xs"
+          className="text-cafe-border hover:text-cafe-primary text-xs transition-colors ml-auto"
           title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? '▶' : '◀'}
@@ -319,7 +327,7 @@ export function Sidebar() {
       </div>
 
       {/* Project List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto py-2">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
           <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             {projects.map((project) => (
@@ -330,10 +338,10 @@ export function Sidebar() {
       </div>
 
       {/* Add Project */}
-      <div className="border-t border-[#1e2d45] p-2">
+      <div className="border-t border-cafe-border p-2">
         <button
           onClick={() => setShowAddProject(true)}
-          className="w-full text-[#3d4e63] hover:text-[#e2e8f0] text-sm py-1 hover:bg-[#161d2e] rounded"
+          className="w-full text-cafe-muted hover:text-cafe-primary text-xs py-1.5 hover:bg-cafe-hover rounded-md transition-colors font-medium"
           title="Add project"
         >
           {collapsed ? '+' : '+ Add Project'}
@@ -347,7 +355,7 @@ export function Sidebar() {
       {!collapsed && (
         <div
           onMouseDown={startResize}
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-cafe-primary/30 transition-colors"
           style={{ userSelect: 'none' }}
         />
       )}

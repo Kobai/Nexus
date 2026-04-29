@@ -43,13 +43,11 @@ export function FileViewerModal({ path, onClose }: Props) {
       .catch((e) => setError(String(e)));
   }, [path]);
 
-  // Keyboard handling
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault();
         setSearchVisible(true);
-        // defer focus so the input is mounted
         setTimeout(() => {
           searchInputRef.current?.focus();
           searchInputRef.current?.select();
@@ -69,7 +67,6 @@ export function FileViewerModal({ path, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [path, query]);
 
-  // Matched lines (1-indexed) in order
   const matchedLines = useMemo(() => {
     if (!query || !content) return [];
     const lower = query.toLowerCase();
@@ -79,7 +76,6 @@ export function FileViewerModal({ path, onClose }: Props) {
     }, []);
   }, [query, content]);
 
-  // Total individual occurrences
   const totalMatches = useMemo(() => {
     if (!query || !content) return 0;
     const lower = query.toLowerCase();
@@ -93,10 +89,8 @@ export function FileViewerModal({ path, onClose }: Props) {
   const clampedIndex = matchedLines.length > 0 ? matchIndex % matchedLines.length : 0;
   const currentLine = matchedLines[clampedIndex] ?? null;
 
-  // Reset index when query changes
   useEffect(() => { setMatchIndex(0); }, [query]);
 
-  // Scroll to current matched line
   useEffect(() => {
     if (!contentRef.current || !currentLine || !content) return;
     const totalLines = content.split('\n').length;
@@ -123,13 +117,13 @@ export function FileViewerModal({ path, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex flex-col bg-[#111827] border border-[#1a2640] rounded-lg shadow-2xl w-[70vw] h-[75vh] max-w-4xl">
+      <div className="flex flex-col bg-cafe-surface border border-cafe-border rounded-xl shadow-2xl w-[70vw] h-[75vh] max-w-4xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2235] shrink-0">
-          <span className="text-sm font-mono text-[#c8d6e5] truncate">{filename}</span>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-cafe-border shrink-0 bg-cafe-hover">
+          <span className="text-xs font-mono text-cafe-text truncate">{filename}</span>
           <div className="flex items-center gap-2 ml-4 shrink-0">
             <button
               onClick={() => {
@@ -141,12 +135,12 @@ export function FileViewerModal({ path, onClose }: Props) {
                   }, 0);
                 }
               }}
-              className={`transition-colors ${searchVisible ? 'text-[#94a3b8]' : 'text-[#3d4e63] hover:text-[#94a3b8]'}`}
+              className={`transition-colors ${searchVisible ? 'text-cafe-primary' : 'text-cafe-border hover:text-cafe-muted'}`}
               title="Search (⌘F)"
             >
               <Search size={14} />
             </button>
-            <button onClick={onClose} className="text-[#3d4e63] hover:text-[#94a3b8] transition-colors">
+            <button onClick={onClose} className="text-cafe-border hover:text-cafe-muted transition-colors">
               <X size={15} />
             </button>
           </div>
@@ -154,8 +148,8 @@ export function FileViewerModal({ path, onClose }: Props) {
 
         {/* Search bar */}
         {searchVisible && (
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-[#1a2235] bg-[#0d1117] shrink-0">
-            <Search size={13} className="text-[#3d4e63] shrink-0" />
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-cafe-border bg-cafe-surface shrink-0">
+            <Search size={13} className="text-cafe-muted shrink-0" />
             <input
               ref={searchInputRef}
               value={query}
@@ -164,10 +158,10 @@ export function FileViewerModal({ path, onClose }: Props) {
               placeholder="Search…"
               autoComplete="off"
               spellCheck={false}
-              className="flex-1 bg-transparent text-sm text-[#e2e8f0] placeholder-[#253047] outline-none"
+              className="flex-1 bg-transparent text-xs text-cafe-text placeholder:text-cafe-border outline-none font-sans"
             />
             {query && (
-              <span className="text-xs text-[#3d4e63] font-mono shrink-0">
+              <span className="text-xs text-cafe-muted font-mono shrink-0">
                 {totalMatches === 0
                   ? 'no matches'
                   : `${clampedIndex + 1} / ${totalMatches}`}
@@ -177,7 +171,7 @@ export function FileViewerModal({ path, onClose }: Props) {
               <button
                 onClick={() => navigate(-1)}
                 disabled={matchedLines.length === 0}
-                className="text-[#3d4e63] hover:text-[#94a3b8] disabled:opacity-30 px-1 text-xs"
+                className="text-cafe-muted hover:text-cafe-primary disabled:opacity-30 px-1 text-xs transition-colors"
                 title="Previous (⇧↵)"
               >
                 ↑
@@ -185,7 +179,7 @@ export function FileViewerModal({ path, onClose }: Props) {
               <button
                 onClick={() => navigate(1)}
                 disabled={matchedLines.length === 0}
-                className="text-[#3d4e63] hover:text-[#94a3b8] disabled:opacity-30 px-1 text-xs"
+                className="text-cafe-muted hover:text-cafe-primary disabled:opacity-30 px-1 text-xs transition-colors"
                 title="Next (↵)"
               >
                 ↓
@@ -197,48 +191,48 @@ export function FileViewerModal({ path, onClose }: Props) {
         {/* Content */}
         <div ref={contentRef} className="flex-1 overflow-auto">
           {error ? (
-            <div className="p-4 text-xs text-[#f87171]">{error}</div>
+            <div className="p-4 text-xs text-cafe-danger">{error}</div>
           ) : content === null ? (
-            <div className="p-4 text-xs text-[#253047]">Loading...</div>
+            <div className="p-4 text-xs text-cafe-border">Loading...</div>
           ) : isMarkdown ? (
             <div className="p-6 max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold text-white border-b border-[#1a2640] pb-2 mb-4 mt-6 first:mt-0">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold text-white border-b border-[#1a2235] pb-1 mb-3 mt-5">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-lg font-semibold text-[#e8eef5] mb-2 mt-4">{children}</h3>,
-                  h4: ({ children }) => <h4 className="text-base font-semibold text-[#d0d0d0] mb-2 mt-3">{children}</h4>,
-                  p: ({ children }) => <p className="text-[#c8d6e5] leading-relaxed mb-3 text-sm">{children}</p>,
-                  a: ({ href, children }) => <a href={href} className="text-[#58a6ff] hover:underline">{children}</a>,
-                  ul: ({ children }) => <ul className="list-disc list-inside text-[#c8d6e5] mb-3 space-y-1 pl-4 text-sm">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside text-[#c8d6e5] mb-3 space-y-1 pl-4 text-sm">{children}</ol>,
-                  li: ({ children }) => <li className="text-[#c8d6e5] text-sm">{children}</li>,
-                  blockquote: ({ children }) => <blockquote className="border-l-4 border-[#253047] pl-4 text-[#7889a0] italic my-3">{children}</blockquote>,
+                  h1: ({ children }) => <h1 className="text-2xl font-bold text-cafe-text border-b border-cafe-border pb-2 mb-4 mt-6 first:mt-0">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-xl font-bold text-cafe-text border-b border-cafe-border pb-1 mb-3 mt-5">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-lg font-semibold text-cafe-text mb-2 mt-4">{children}</h3>,
+                  h4: ({ children }) => <h4 className="text-base font-semibold text-cafe-text mb-2 mt-3">{children}</h4>,
+                  p: ({ children }) => <p className="text-cafe-muted leading-relaxed mb-3 text-sm">{children}</p>,
+                  a: ({ href, children }) => <a href={href} className="text-cafe-primary hover:underline">{children}</a>,
+                  ul: ({ children }) => <ul className="list-disc list-inside text-cafe-muted mb-3 space-y-1 pl-4 text-sm">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside text-cafe-muted mb-3 space-y-1 pl-4 text-sm">{children}</ol>,
+                  li: ({ children }) => <li className="text-cafe-muted text-sm">{children}</li>,
+                  blockquote: ({ children }) => <blockquote className="border-l-4 border-cafe-border pl-4 text-cafe-muted italic my-3">{children}</blockquote>,
                   code: ({ className, children }) => {
                     const match = /language-(\w+)/.exec(className ?? '');
                     return match ? (
                       <SyntaxHighlighter
                         language={match[1]}
                         style={oneDark}
-                        customStyle={{ margin: 0, fontSize: '12px' }}
+                        customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px' }}
                       >
                         {String(children).replace(/\n$/, '')}
                       </SyntaxHighlighter>
                     ) : (
-                      <code className="bg-[#1a2235] text-[#e8eef5] font-mono text-[11px] px-1.5 py-0.5 rounded">
+                      <code className="bg-cafe-hover text-cafe-primary font-mono text-[11px] px-1.5 py-0.5 rounded">
                         {children}
                       </code>
                     );
                   },
-                  pre: ({ children }) => <pre className="bg-[#0a0f1a] rounded mb-4 overflow-auto">{children}</pre>,
-                  hr: () => <hr className="border-[#1a2640] my-6" />,
+                  pre: ({ children }) => <pre className="rounded-lg mb-4 overflow-auto">{children}</pre>,
+                  hr: () => <hr className="border-cafe-border my-6" />,
                   table: ({ children }) => <table className="w-full text-sm border-collapse mb-4">{children}</table>,
-                  th: ({ children }) => <th className="border border-[#253047] bg-[#1a2235] text-[#e8eef5] font-semibold px-3 py-2 text-left">{children}</th>,
-                  td: ({ children }) => <td className="border border-[#1a2640] text-[#c8d6e5] px-3 py-2">{children}</td>,
-                  tr: ({ children }) => <tr className="even:bg-[#141c2c]">{children}</tr>,
-                  strong: ({ children }) => <strong className="font-semibold text-[#e8eef5]">{children}</strong>,
-                  em: ({ children }) => <em className="italic text-[#94a3b8]">{children}</em>,
+                  th: ({ children }) => <th className="border border-cafe-border bg-cafe-hover text-cafe-text font-semibold px-3 py-2 text-left">{children}</th>,
+                  td: ({ children }) => <td className="border border-cafe-border text-cafe-muted px-3 py-2">{children}</td>,
+                  tr: ({ children }) => <tr className="even:bg-cafe-hover">{children}</tr>,
+                  strong: ({ children }) => <strong className="font-semibold text-cafe-text">{children}</strong>,
+                  em: ({ children }) => <em className="italic text-cafe-muted">{children}</em>,
                 }}
               >
                 {content}
@@ -248,9 +242,9 @@ export function FileViewerModal({ path, onClose }: Props) {
             <SyntaxHighlighter
               language={getLanguage(filename)}
               style={oneDark}
-              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6' }}
+              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0 }}
               showLineNumbers
-              lineNumberStyle={{ color: '#1e2d45', minWidth: '2.5em' }}
+              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em' }}
               wrapLines
               lineProps={(lineNumber) => {
                 if (!matchLineSet.has(lineNumber)) return {};
@@ -258,8 +252,8 @@ export function FileViewerModal({ path, onClose }: Props) {
                   style: {
                     display: 'block',
                     backgroundColor: lineNumber === currentLine
-                      ? 'rgba(250, 200, 50, 0.2)'
-                      : 'rgba(250, 200, 50, 0.08)',
+                      ? 'rgba(93, 68, 50, 0.25)'
+                      : 'rgba(93, 68, 50, 0.1)',
                   },
                 };
               }}

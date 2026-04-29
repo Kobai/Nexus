@@ -53,15 +53,15 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
       {...attributes}
       {...listeners}
       onClick={onActivate}
-      className={`flex items-center gap-1 px-3 py-1.5 text-sm select-none cursor-pointer border-b-2 ${
+      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium select-none cursor-pointer border-b-2 transition-colors whitespace-nowrap ${
         isActive
-          ? 'border-blue-500 text-[#e2e8f0] bg-[#161d2e]'
-          : 'border-transparent text-[#8896ab] hover:text-[#e2e8f0] hover:bg-[#111827]'
+          ? 'border-b-cafe-primary text-cafe-primary bg-cafe-surface'
+          : 'border-b-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
       }`}
     >
       {editing ? (
         <input
-          className="bg-transparent outline-none text-[#e2e8f0] w-20"
+          className="bg-transparent outline-none text-cafe-text w-20 font-sans text-xs"
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={commitRename}
@@ -78,7 +78,9 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
       )}
       <button
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="ml-1 text-[#3d4e63] hover:text-[#e2e8f0] leading-none"
+        className={`ml-0.5 leading-none transition-colors ${
+          isActive ? 'text-cafe-muted hover:text-cafe-danger' : 'text-cafe-border hover:text-cafe-danger'
+        }`}
       >
         ×
       </button>
@@ -129,7 +131,7 @@ export function TabBar({ sessionId }: Props) {
   }
 
   return (
-    <div className="flex items-end bg-[#0d1117] border-b border-[#1e2d45] overflow-x-auto">
+    <div className="flex items-end bg-cafe-secondary border-b border-cafe-border overflow-x-auto shrink-0">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
           {tabs.map((tab) => (
@@ -146,7 +148,7 @@ export function TabBar({ sessionId }: Props) {
       </DndContext>
       <button
         onClick={handleAddTab}
-        className="px-3 py-1.5 text-[#3d4e63] hover:text-[#e2e8f0] text-lg leading-none"
+        className="px-3 py-2 text-cafe-border hover:text-cafe-primary text-lg leading-none transition-colors"
         title="New tab"
       >
         +

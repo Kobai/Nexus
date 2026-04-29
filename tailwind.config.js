@@ -4,21 +4,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dracula theme
-        'dracula-bg': '#282a36',
-        'dracula-current-line': '#44475a',
-        'dracula-selection': '#44475a',
-        'dracula-foreground': '#f8f8f2',
-        'dracula-comment': '#6272a4',
-        'dracula-cyan': '#8be9fd',
-        'dracula-green': '#50fa7b',
-        'dracula-orange': '#ffb86c',
-        'dracula-pink': '#ff79c6',
-        'dracula-purple': '#bd93f9',
-        'dracula-red': '#ff5555',
-        'dracula-yellow': '#f1fa8c',
-      }
-    }
+        cafe: {
+          primary: '#5D4432',
+          secondary: '#E9E3DD',
+          surface: '#F9F7F5',
+          text: '#3E2B1E',
+          muted: '#9E8E84',
+          border: '#D4C9BF',
+          hover: '#EDE8E3',
+          active: '#D9CFC8',
+          success: '#16A34A',
+          warning: '#D97706',
+          danger: '#DC2626',
+        },
+      },
+      fontFamily: {
+        sans: ['Poppins', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+      },
+    },
   },
   plugins: [],
 }
