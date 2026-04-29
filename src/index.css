@@ -12,9 +12,9 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #0d1117;
-  color: #e2e8f0;
-  font-family: system-ui, sans-serif;
+  background: #F9F7F5;
+  color: #3E2B1E;
+  font-family: 'Poppins', system-ui, sans-serif;
 }
 
 .xterm {
@@ -23,4 +23,23 @@ html, body, #root {
 
 .xterm-viewport {
   overflow-y: auto !important;
+}
+
+/* Scrollbar styling for warm theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4C9BF;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9E8E84;
 }

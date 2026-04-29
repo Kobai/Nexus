@@ -33,12 +33,12 @@ function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
   if (!node.is_dir) {
     return (
       <div
-        className="flex items-center gap-1 py-0.5 hover:bg-[#1a2235] cursor-pointer rounded"
+        className="flex items-center gap-1.5 py-0.5 hover:bg-cafe-hover cursor-pointer rounded transition-colors"
         style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
         onClick={() => onOpenFile(node.path)}
       >
-        <File size={12} className="text-[#3d4e63] shrink-0" />
-        <span className="text-xs text-[#94a3b8] truncate">{node.name}</span>
+        <File size={12} className="text-cafe-border shrink-0" />
+        <span className="text-xs text-cafe-muted truncate">{node.name}</span>
       </div>
     );
   }
@@ -46,21 +46,21 @@ function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
   return (
     <div>
       <div
-        className="flex items-center gap-1 px-2 py-0.5 hover:bg-[#1a2235] cursor-pointer rounded"
-        style={{ paddingLeft: `${8 + depth * 12}px` }}
+        className="flex items-center gap-1 py-0.5 hover:bg-cafe-hover cursor-pointer rounded transition-colors"
+        style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
         onClick={() => setOpen((o) => !o)}
       >
         {open ? (
-          <ChevronDown size={12} className="text-[#3d4e63] shrink-0" />
+          <ChevronDown size={11} className="text-cafe-border shrink-0" />
         ) : (
-          <ChevronRight size={12} className="text-[#3d4e63] shrink-0" />
+          <ChevronRight size={11} className="text-cafe-border shrink-0" />
         )}
         {open ? (
-          <FolderOpen size={12} className="text-[#e8c468] shrink-0" />
+          <FolderOpen size={12} className="text-cafe-warning shrink-0" />
         ) : (
-          <Folder size={12} className="text-[#e8c468] shrink-0" />
+          <Folder size={12} className="text-cafe-warning/70 shrink-0" />
         )}
-        <span className="text-xs text-[#c8d6e5] truncate">{node.name}</span>
+        <span className="text-xs text-cafe-text font-medium truncate">{node.name}</span>
       </div>
       {open && node.children.map((child) => (
         <TreeNode key={child.path} node={child} depth={depth + 1} onOpenFile={onOpenFile} />
@@ -87,11 +87,11 @@ export function FileTreePanel({ projectId }: Props) {
 
   return (
     <>
-      <div className="flex flex-col h-full">
-        <div className="px-3 py-2 border-b border-[#1e2d45]">
-          <span className="text-xs font-medium text-[#8896ab]">File Tree</span>
+      <div className="flex flex-col h-full bg-cafe-surface">
+        <div className="px-3 py-2 border-b border-cafe-border shrink-0">
+          <span className="text-xs font-semibold text-cafe-primary tracking-wide">Files</span>
         </div>
-        <div className="px-2 py-1.5 border-b border-[#1e2d45]">
+        <div className="px-2 py-1.5 border-b border-cafe-border shrink-0">
           <div className="relative flex items-center">
             <input
               type="text"
@@ -100,12 +100,12 @@ export function FileTreePanel({ projectId }: Props) {
               placeholder="Search files..."
               autoCorrect="off"
               spellCheck={false}
-              className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-2 py-1 text-xs text-[#c8d6e5] placeholder-[#3d4e63] outline-none focus:border-[#3d4e63]"
+              className="w-full bg-cafe-hover border border-cafe-border rounded-lg px-2 py-1 text-xs text-cafe-text placeholder:text-cafe-border outline-none focus:border-cafe-primary transition-colors font-sans"
             />
             {query && (
               <button
                 onClick={() => setQuery('')}
-                className="absolute right-1.5 text-[#3d4e63] hover:text-[#7889a0]"
+                className="absolute right-1.5 text-cafe-border hover:text-cafe-muted transition-colors"
               >
                 <X size={10} />
               </button>
@@ -114,32 +114,32 @@ export function FileTreePanel({ projectId }: Props) {
         </div>
         <div className="flex-1 overflow-auto py-1">
           {loading && (
-            <div className="px-3 py-4 text-xs text-[#3d4e63]">Loading...</div>
+            <div className="px-3 py-4 text-xs text-cafe-border">Loading...</div>
           )}
           {error && (
-            <div className="px-3 py-4 text-xs text-[#f87171]">{error}</div>
+            <div className="px-3 py-4 text-xs text-cafe-danger">{error}</div>
           )}
           {!loading && !error && tree !== null && (
             tree.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-[#3d4e63]">Empty directory</div>
+              <div className="px-3 py-4 text-xs text-cafe-border italic">Empty directory</div>
             ) : query ? (
               (() => {
                 const filtered = flattenTree(tree).filter(n =>
                   n.path.toLowerCase().includes(query.toLowerCase())
                 );
                 return filtered.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-[#3d4e63]">No files match</div>
+                  <div className="px-3 py-4 text-xs text-cafe-border italic">No files match</div>
                 ) : (
                   filtered.map((node) => (
                     <div
                       key={node.path}
-                      className="flex items-center gap-1 px-2 py-0.5 hover:bg-[#1a2235] cursor-pointer rounded"
+                      className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-cafe-hover cursor-pointer rounded transition-colors"
                       onClick={() => setOpenFilePath(node.path)}
                     >
-                      <File size={12} className="text-[#3d4e63] shrink-0" />
+                      <File size={12} className="text-cafe-border shrink-0" />
                       <div className="min-w-0">
-                        <div className="text-xs text-[#94a3b8] truncate">{node.name}</div>
-                        <div className="text-[10px] text-[#3d4e63] truncate">{node.path}</div>
+                        <div className="text-xs text-cafe-text truncate">{node.name}</div>
+                        <div className="text-[10px] text-cafe-muted truncate">{node.path}</div>
                       </div>
                     </div>
                   ))

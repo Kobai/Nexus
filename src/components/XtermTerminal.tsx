@@ -6,27 +6,28 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTerminalStore } from '../store/terminalStore';
 import '@xterm/xterm/css/xterm.css';
 
-const darkTheme = {
-  background: '#0d1117',
-  foreground: '#e2e8f0',
-  cursor: '#e2e8f0',
-  cursorAccent: '#0d1117',
-  black: '#0d1117',
-  brightBlack: '#4a5a72',
-  red: '#cd3131',
-  brightRed: '#f14c4c',
-  green: '#0dbc79',
-  brightGreen: '#23d18b',
-  yellow: '#e5e510',
-  brightYellow: '#f5f543',
-  blue: '#2472c8',
-  brightBlue: '#3b8eea',
-  magenta: '#bc3fbc',
-  brightMagenta: '#d670d6',
-  cyan: '#11a8cd',
-  brightCyan: '#29b8db',
-  white: '#eaf0f8',
-  brightWhite: '#eaf0f8',
+const cafeTheme = {
+  background: '#F9F7F5',
+  foreground: '#3E2B1E',
+  cursor: '#5D4432',
+  cursorAccent: '#F9F7F5',
+  selectionBackground: '#D9CFC8',
+  black: '#3E2B1E',
+  brightBlack: '#9E8E84',
+  red: '#DC2626',
+  brightRed: '#EF4444',
+  green: '#16A34A',
+  brightGreen: '#22C55E',
+  yellow: '#D97706',
+  brightYellow: '#F59E0B',
+  blue: '#2563EB',
+  brightBlue: '#3B82F6',
+  magenta: '#7C3AED',
+  brightMagenta: '#8B5CF6',
+  cyan: '#0891B2',
+  brightCyan: '#06B6D4',
+  white: '#E9E3DD',
+  brightWhite: '#F9F7F5',
 };
 
 interface Props {
@@ -42,9 +43,9 @@ export function XtermTerminal({ tabId }: Props) {
     if (!containerRef.current) return;
 
     const term = new Terminal({
-      fontFamily: 'monospace',
-      fontSize: 11,
-      theme: darkTheme,
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: 12,
+      theme: cafeTheme,
       cursorBlink: true,
       allowTransparency: false,
     });
@@ -83,7 +84,8 @@ export function XtermTerminal({ tabId }: Props) {
         height: '100%',
         width: '100%',
         padding: '4px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        background: '#F9F7F5',
       }}
     />
   );

@@ -42,22 +42,22 @@ export function AddProjectModal({ onClose }: Props) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[#161d2e] border border-[#1e2d45] rounded-lg p-6 w-[400px] shadow-xl">
-        <h2 className="text-[#e2e8f0] font-semibold text-base mb-4">Add Project</h2>
-        <p className="text-[#8896ab] text-sm mb-4">Select a git repository folder.</p>
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm">
+      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[400px] shadow-2xl">
+        <h2 className="text-cafe-text font-semibold text-sm mb-1">Add Project</h2>
+        <p className="text-cafe-muted text-xs mb-5">Select a git repository folder.</p>
+        {error && <p className="text-cafe-danger text-xs mb-3">{error}</p>}
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-sm rounded bg-[#1e2d45] text-[#e2e8f0] hover:bg-[#253047] transition-colors"
+            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-cafe-hover text-cafe-text hover:bg-cafe-active transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handlePick}
             disabled={loading}
-            className="px-4 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-cafe-primary hover:bg-cafe-primary/80 text-white transition-colors disabled:opacity-50"
           >
             {loading ? 'Adding…' : 'Browse…'}
           </button>

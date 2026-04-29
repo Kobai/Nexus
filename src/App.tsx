@@ -72,7 +72,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0d1117]">
+    <div className="flex h-screen w-screen overflow-hidden bg-cafe-surface">
       <Sidebar />
       <MainWindow />
       <RightSidebar />

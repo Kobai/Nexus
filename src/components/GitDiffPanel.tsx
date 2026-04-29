@@ -9,11 +9,11 @@ interface Props {
 interface DiffLine {
   type: 'add' | 'remove' | 'context';
   content: string;
-  lineNo: number; // new line no for add/context, old line no for remove
+  lineNo: number;
 }
 
 interface DiffHunk {
-  header: string; // function/method context from @@ line
+  header: string;
   lines: DiffLine[];
 }
 
@@ -30,7 +30,7 @@ function parseDiff(raw: string): DiffFile[] {
 
   for (const section of sections) {
     const lines = section.split('\n');
-    const header = lines[0]; // "a/foo b/bar"
+    const header = lines[0];
     const m = header.match(/ b\/(.+)$/);
     const parts = header.split(' ');
     const filename = m ? m[1] : (parts[parts.length - 1] ?? 'unknown');
@@ -53,7 +53,6 @@ function parseDiff(raw: string): DiffFile[] {
         hunks.push(hunk);
         continue;
       }
-      // skip metadata lines
       if (
         !hunk ||
         line.startsWith('index ') ||
@@ -73,7 +72,6 @@ function parseDiff(raw: string): DiffFile[] {
         deletions++;
         hunk.lines.push({ type: 'remove', content: line.slice(1), lineNo: oldNo++ });
       } else {
-        // context line (starts with space or is empty within hunk)
         hunk.lines.push({ type: 'context', content: line.startsWith(' ') ? line.slice(1) : line, lineNo: newNo });
         oldNo++;
         newNo++;
@@ -92,27 +90,27 @@ function FileSection({ file }: { file: DiffFile }) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="border border-[#1a2740] rounded-md overflow-hidden mb-3">
+    <div className="border border-cafe-border rounded-lg overflow-hidden mb-2">
       {/* File header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-[#0d1117] hover:bg-[#131924] transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-cafe-hover hover:bg-cafe-active transition-colors text-left"
       >
         {open ? (
-          <ChevronDown size={11} className="text-[#3d4e63] shrink-0" />
+          <ChevronDown size={11} className="text-cafe-muted shrink-0" />
         ) : (
-          <ChevronRight size={11} className="text-[#3d4e63] shrink-0" />
+          <ChevronRight size={11} className="text-cafe-muted shrink-0" />
         )}
-        <span className="text-[11px] font-mono text-[#c8d6e5] truncate flex-1 min-w-0">{file.filename}</span>
-        <span className="text-[10px] text-[#4ec994] shrink-0">+{file.additions}</span>
-        <span className="text-[10px] text-[#f87171] shrink-0 ml-1">-{file.deletions}</span>
+        <span className="text-[11px] font-mono text-cafe-text truncate flex-1 min-w-0">{file.filename}</span>
+        <span className="text-[10px] text-cafe-success shrink-0 font-medium">+{file.additions}</span>
+        <span className="text-[10px] text-cafe-danger shrink-0 ml-1 font-medium">-{file.deletions}</span>
       </button>
 
       {open && file.hunks.map((hunk, hi) => (
         <div key={hi}>
           {/* Hunk header */}
-          <div className="px-3 py-1 bg-[#1e2433] border-t border-[#1a2740]">
-            <span className="text-[10px] text-[#5b7ab8] font-mono">
+          <div className="px-3 py-1 bg-cafe-secondary border-t border-cafe-border">
+            <span className="text-[10px] text-cafe-muted font-mono">
               {hunk.header ? `… ${hunk.header}` : '…'}
             </span>
           </div>
@@ -125,20 +123,20 @@ function FileSection({ file }: { file: DiffFile }) {
                 <div
                   key={li}
                   className={`flex ${
-                    isAdd ? 'bg-[#0d2b1a]' : isRemove ? 'bg-[#2b0d0d]' : ''
+                    isAdd ? 'bg-green-50' : isRemove ? 'bg-red-50' : 'bg-white'
                   }`}
                 >
-                  <span className={`select-none w-8 shrink-0 text-right pr-2 border-r ${
-                    isAdd ? 'text-[#2d6e47] border-[#1a4028]' :
-                    isRemove ? 'text-[#7a2e2e] border-[#4a1a1a]' :
-                    'text-[#1e2d45] border-[#1a2235]'
+                  <span className={`select-none w-8 shrink-0 text-right pr-2 border-r text-[10px] ${
+                    isAdd ? 'text-green-400 border-green-100' :
+                    isRemove ? 'text-red-300 border-red-100' :
+                    'text-cafe-border border-cafe-border'
                   }`}>
                     {line.lineNo}
                   </span>
                   <span className={`pl-2 pr-3 whitespace-pre-wrap break-all ${
-                    isAdd ? 'text-[#4ec994]' : isRemove ? 'text-[#f87171]' : 'text-[#7889a0]'
+                    isAdd ? 'text-green-800' : isRemove ? 'text-red-700' : 'text-cafe-muted'
                   }`}>
-                    <span className={`mr-1 ${isAdd ? 'text-[#2d6e47]' : isRemove ? 'text-[#7a2e2e]' : 'opacity-0'}`}>
+                    <span className={`mr-1 ${isAdd ? 'text-green-400' : isRemove ? 'text-red-300' : 'opacity-0'}`}>
                       {isAdd ? '+' : isRemove ? '−' : '+'}
                     </span>
                     {line.content}
@@ -182,28 +180,28 @@ export function GitDiffPanel({ projectId }: Props) {
     : files;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2235] shrink-0">
+    <div className="flex flex-col h-full bg-cafe-surface">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-cafe-border shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#8896ab]">Changes</span>
+          <span className="text-xs font-semibold text-cafe-primary tracking-wide">Changes</span>
           {files && files.length > 0 && (
-            <span className="text-[10px] text-[#3d4e63]">
+            <span className="text-[10px] text-cafe-muted">
               {(visibleFiles ?? []).length}{query ? `/${files.length}` : ''} file{files.length !== 1 ? 's' : ''}
-              <span className="text-[#2d6e47] ml-1.5">+{totalAdd}</span>
-              <span className="text-[#7a2e2e] ml-1">-{totalDel}</span>
+              <span className="text-cafe-success ml-1.5 font-medium">+{totalAdd}</span>
+              <span className="text-cafe-danger ml-1 font-medium">-{totalDel}</span>
             </span>
           )}
         </div>
         <button
           onClick={fetchDiff}
-          className="text-[#3d4e63] hover:text-[#7889a0] transition-colors"
+          className="text-cafe-border hover:text-cafe-muted transition-colors"
           title="Refresh"
         >
           <RefreshCw size={11} />
         </button>
       </div>
 
-      <div className="px-2 py-1.5 border-b border-[#1a2235] shrink-0">
+      <div className="px-2 py-1.5 border-b border-cafe-border shrink-0">
         <div className="relative flex items-center">
           <input
             type="text"
@@ -212,12 +210,12 @@ export function GitDiffPanel({ projectId }: Props) {
             placeholder="Filter files..."
             autoCorrect="off"
             spellCheck={false}
-            className="w-full bg-[#0d1117] border border-[#1e2d45] rounded px-2 py-1 text-xs text-[#c8d6e5] placeholder-[#3d4e63] outline-none focus:border-[#3d4e63]"
+            className="w-full bg-cafe-hover border border-cafe-border rounded-lg px-2 py-1 text-xs text-cafe-text placeholder:text-cafe-border outline-none focus:border-cafe-primary transition-colors font-sans"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-1.5 text-[#3d4e63] hover:text-[#7889a0]"
+              className="absolute right-1.5 text-cafe-border hover:text-cafe-muted transition-colors"
             >
               <X size={10} />
             </button>
@@ -226,11 +224,11 @@ export function GitDiffPanel({ projectId }: Props) {
       </div>
 
       <div className="flex-1 overflow-auto p-3">
-        {loading && <div className="text-xs text-[#253047] py-2">Loading...</div>}
-        {error && <div className="text-xs text-[#f87171] py-2">{error}</div>}
+        {loading && <div className="text-xs text-cafe-border py-2">Loading...</div>}
+        {error && <div className="text-xs text-cafe-danger py-2">{error}</div>}
         {!loading && !error && visibleFiles !== null && (
           visibleFiles!.length === 0
-            ? <div className="text-xs text-[#253047] py-2">{query ? 'No files match' : 'No changes'}</div>
+            ? <div className="text-xs text-cafe-border py-2 italic">{query ? 'No files match' : 'No changes'}</div>
             : visibleFiles!.map((f, i) => <FileSection key={i} file={f} />)
         )}
       </div>
