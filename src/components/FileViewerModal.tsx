@@ -6,6 +6,23 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+const cafeLight = {
+  ...oneLight,
+  'pre[class*="language-"]': {
+    ...oneLight['pre[class*="language-"]'],
+    background: '#F9F7F5',
+    border: 'none',
+    boxShadow: 'none',
+    margin: 0,
+  },
+  'code[class*="language-"]': {
+    ...oneLight['code[class*="language-"]'],
+    background: 'transparent',
+    border: 'none',
+    textShadow: 'none',
+  },
+};
+
 function getLanguage(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
@@ -214,7 +231,7 @@ export function FileViewerModal({ path, onClose }: Props) {
                     return match ? (
                       <SyntaxHighlighter
                         language={match[1]}
-                        style={oneLight}
+                        style={cafeLight}
                         customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px', background: '#EDE8E3' }}
                       >
                         {String(children).replace(/\n$/, '')}
@@ -241,10 +258,10 @@ export function FileViewerModal({ path, onClose }: Props) {
           ) : (
             <SyntaxHighlighter
               language={getLanguage(filename)}
-              style={oneLight}
+              style={cafeLight}
               customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0, background: '#F9F7F5' }}
               showLineNumbers
-              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em', background: '#EDE8E3' }}
+              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em' }}
               wrapLines
               lineProps={(lineNumber) => {
                 if (!matchLineSet.has(lineNumber)) return {};
