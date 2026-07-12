@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, memo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { RefreshCw, ChevronDown, ChevronRight, X } from 'lucide-react';
+
+const diffCache = new Map<string, { data: DiffFile[] }>();
 
 interface Props {
   projectId: string;
@@ -86,12 +88,11 @@ function parseDiff(raw: string): DiffFile[] {
   return files;
 }
 
-function FileSection({ file }: { file: DiffFile }) {
+const FileSection = memo(function FileSection({ file }: { file: DiffFile }) {
   const [open, setOpen] = useState(true);
 
   return (
     <div className="border border-cafe-border rounded-lg overflow-hidden mb-2">
-      {/* File header */}
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2 px-3 py-2 bg-cafe-hover hover:bg-cafe-active transition-colors text-left"
@@ -108,13 +109,11 @@ function FileSection({ file }: { file: DiffFile }) {
 
       {open && file.hunks.map((hunk, hi) => (
         <div key={hi}>
-          {/* Hunk header */}
           <div className="px-3 py-1 bg-cafe-secondary border-t border-cafe-border">
             <span className="text-[10px] text-cafe-muted font-mono">
               {hunk.header ? `… ${hunk.header}` : '…'}
             </span>
           </div>
-          {/* Lines */}
           <div className="font-mono text-[11px] leading-5">
             {hunk.lines.map((line, li) => {
               const isAdd = line.type === 'add';
@@ -149,7 +148,7 @@ function FileSection({ file }: { file: DiffFile }) {
       ))}
     </div>
   );
-}
+});
 
 export function GitDiffPanel({ projectId }: Props) {
   const [files, setFiles] = useState<DiffFile[] | null>(null);
@@ -162,7 +161,9 @@ export function GitDiffPanel({ projectId }: Props) {
     setError(null);
     try {
       const raw = await invoke<string>('get_git_diff', { projectId });
-      setFiles(parseDiff(raw));
+      const parsed = parseDiff(raw);
+      diffCache.set(projectId, { data: parsed });
+      setFiles(parsed);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -170,14 +171,25 @@ export function GitDiffPanel({ projectId }: Props) {
     }
   }
 
-  useEffect(() => { fetchDiff(); }, [projectId]);
+  useEffect(() => {
+    const cached = diffCache.get(projectId);
+    if (cached) {
+      setFiles(cached.data);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    fetchDiff();
+  }, [projectId]);
 
-  const totalAdd = files?.reduce((s, f) => s + f.additions, 0) ?? 0;
-  const totalDel = files?.reduce((s, f) => s + f.deletions, 0) ?? 0;
+  const visibleFiles = useMemo(() => {
+    if (!files) return null;
+    if (!query) return files;
+    return files.filter(f => f.filename.toLowerCase().includes(query.toLowerCase()));
+  }, [files, query]);
 
-  const visibleFiles = files && query
-    ? files.filter(f => f.filename.toLowerCase().includes(query.toLowerCase()))
-    : files;
+  const totalAdd = useMemo(() => files?.reduce((s, f) => s + f.additions, 0) ?? 0, [files]);
+  const totalDel = useMemo(() => files?.reduce((s, f) => s + f.deletions, 0) ?? 0, [files]);
 
   return (
     <div className="flex flex-col h-full bg-cafe-surface">
@@ -229,7 +241,7 @@ export function GitDiffPanel({ projectId }: Props) {
         {!loading && !error && visibleFiles !== null && (
           visibleFiles!.length === 0
             ? <div className="text-xs text-cafe-border py-2 italic">{query ? 'No files match' : 'No changes'}</div>
-            : visibleFiles!.map((f, i) => <FileSection key={i} file={f} />)
+            : visibleFiles!.map((f, i) => <FileSection key={`${f.filename}-${i}`} file={f} />)
         )}
       </div>
     </div>
