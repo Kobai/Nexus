@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { MermaidDiagram } from './MermaidDiagram';
 
 const cafeLight = {
   ...oneLight,
@@ -228,6 +229,9 @@ export function FileViewerModal({ path, onClose }: Props) {
                   blockquote: ({ children }) => <blockquote className="border-l-4 border-cafe-border pl-4 text-cafe-muted italic my-3">{children}</blockquote>,
                   code: ({ className, children }) => {
                     const match = /language-(\w+)/.exec(className ?? '');
+                    if (match && match[1] === 'mermaid') {
+                      return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+                    }
                     return match ? (
                       <SyntaxHighlighter
                         language={match[1]}
