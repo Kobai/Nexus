@@ -8,9 +8,9 @@ mermaid.initialize({
   theme: 'base',
   themeVariables: {
     background: '#F9F7F5',
-    primaryColor: '#5D4432',
-    primaryTextColor: '#5D4432',
-    primaryBorderColor: '#D4C9BF',
+    primaryColor: '#D4C9BF',
+    primaryTextColor: '#3E2B1E',
+    primaryBorderColor: '#B8A99A',
     lineColor: '#B8A99A',
     secondaryColor: '#EDE8E3',
     tertiaryColor: '#F9F7F5',
