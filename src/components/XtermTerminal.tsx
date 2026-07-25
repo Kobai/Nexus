@@ -26,8 +26,8 @@ const cafeTheme = {
   brightMagenta: '#8B5CF6',
   cyan: '#0891B2',
   brightCyan: '#06B6D4',
-  white: '#E9E3DD',
-  brightWhite: '#F9F7F5',
+  white: '#7A6B61',
+  brightWhite: '#5D4432',
 };
 
 interface Props {
