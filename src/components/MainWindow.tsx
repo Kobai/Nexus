@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useSessionStore } from '../store/sessionStore';
 import { useTabStore } from '../store/tabStore';
+import { useTerminalStore } from '../store/terminalStore';
 import { TabBar } from './TabBar';
 import { XtermTerminal } from './XtermTerminal';
+import { Tab } from '../types';
 
 export function MainWindow() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -18,6 +21,29 @@ export function MainWindow() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!e.metaKey || !activeSessionId) return;
+
+      // cmd+w — close active tab
+      if (e.key === 'w') {
+        e.preventDefault();
+        const { activeTabId, removeTab } = useTabStore.getState();
+        const tabId = activeTabId[activeSessionId];
+        if (!tabId) return;
+        useTerminalStore.getState().unregisterTerminal(tabId);
+        invoke('close_tab', { tabId }).catch(() => {});
+        removeTab(tabId);
+        return;
+      }
+
+      // cmd+n — new tab
+      if (e.key === 'n') {
+        e.preventDefault();
+        invoke<Tab>('create_tab', { sessionId: activeSessionId })
+          .then((tab) => useTabStore.getState().addTab(tab))
+          .catch(() => {});
+        return;
+      }
+
+      // cmd+1–9 — switch to tab by index
       const num = parseInt(e.key);
       if (num >= 1 && num <= 9) {
         const tab = activeTabsRef.current[num - 1];
