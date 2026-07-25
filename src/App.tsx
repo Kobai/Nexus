@@ -32,6 +32,11 @@ export default function App() {
           setActiveSession(firstProjectSessions[0].id);
         }
       }
+
+      // Re-spawn PTYs for tabs that persisted across restart
+      if (data.tabs.length > 0) {
+        invoke('restore_ptys').catch(() => {});
+      }
     });
 
     // Global PTY event listeners

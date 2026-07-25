@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { RefreshCw } from 'lucide-react';
 import { useSessionStore } from '../store/sessionStore';
 import { useTabStore } from '../store/tabStore';
 import { Session, Tab } from '../types';
@@ -24,6 +25,8 @@ export function NewSessionModal({ projectId, onClose }: Props) {
   const [branches, setBranches] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullStatus, setPullStatus] = useState<'success' | 'error' | null>(null);
 
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
@@ -39,6 +42,21 @@ export function NewSessionModal({ projectId, onClose }: Props) {
       }
     });
   }, [projectId]);
+
+  async function handlePull() {
+    if (!baseBranch || pulling) return;
+    setPulling(true);
+    setPullStatus(null);
+    try {
+      await invoke('fetch_and_pull_branch', { projectId, branch: baseBranch });
+      setPullStatus('success');
+    } catch (e: any) {
+      setError(String(e));
+      setPullStatus('error');
+    } finally {
+      setPulling(false);
+    }
+  }
 
   async function handleConfirm() {
     if (!name.trim()) { setError('Session name is required'); return; }
@@ -116,13 +134,29 @@ export function NewSessionModal({ projectId, onClose }: Props) {
             <>
               <div>
                 <label className={labelClass}>Base branch</label>
-                <select
-                  value={baseBranch}
-                  onChange={(e) => setBaseBranch(e.target.value)}
-                  className={selectClass}
-                >
-                  {branches.map((b) => <option key={b}>{b}</option>)}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={baseBranch}
+                    onChange={(e) => { setBaseBranch(e.target.value); setPullStatus(null); }}
+                    className={selectClass}
+                  >
+                    {branches.map((b) => <option key={b}>{b}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handlePull}
+                    disabled={pulling || !baseBranch}
+                    title={`Fetch & pull ${baseBranch}`}
+                    className="flex-shrink-0 p-1.5 rounded-lg border border-cafe-border bg-cafe-hover text-cafe-muted hover:text-cafe-text hover:bg-cafe-active disabled:opacity-40 transition-colors"
+                  >
+                    <RefreshCw
+                      size={13}
+                      className={pulling ? 'animate-spin' : ''}
+                      strokeWidth={pullStatus === 'success' ? 2.5 : 2}
+                      color={pullStatus === 'success' ? 'var(--color-cafe-success, #16a34a)' : undefined}
+                    />
+                  </button>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>New branch name</label>
