@@ -1089,6 +1089,81 @@ fn invalidate_usage_cache(cache: State<UsageCache>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn fetch_and_pull_branch(
+    project_id: String,
+    branch: String,
+    db: State<DbState>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row("SELECT path FROM projects WHERE id = ?1", [&project_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    drop(conn);
+
+    let fetch = std::process::Command::new("git")
+        .args(["-C", &path, "fetch", "origin"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !fetch.status.success() {
+        return Err(String::from_utf8_lossy(&fetch.stderr).trim().to_string());
+    }
+
+    let pull = std::process::Command::new("git")
+        .args(["-C", &path, "pull", "origin", &branch])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !pull.status.success() {
+        return Err(String::from_utf8_lossy(&pull.stderr).trim().to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn restore_ptys(
+    app_handle: AppHandle,
+    db: State<DbState>,
+    pty_state: State<PtyState>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT tt.id, p.path, s.is_worktree, s.worktree_path
+             FROM terminal_tabs tt
+             JOIN sessions s ON s.id = tt.session_id
+             JOIN projects p ON p.id = s.project_id
+             ORDER BY tt.sort_order",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows: Vec<(String, String, bool, Option<String>)> = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)? != 0,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    drop(stmt);
+    drop(conn);
+
+    let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
+    for (tab_id, project_path, is_worktree, worktree_path) in rows {
+        let working_dir = if is_worktree {
+            PathBuf::from(worktree_path.unwrap_or(project_path))
+        } else {
+            PathBuf::from(project_path)
+        };
+        let _ = spawn_pty(app_handle.clone(), tab_id, working_dir, &mut pty_manager);
+    }
+
+    Ok(())
+}
+
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -1134,6 +1209,8 @@ pub fn run() {
             get_usage_settings,
             set_usage_settings,
             invalidate_usage_cache,
+            restore_ptys,
+            fetch_and_pull_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

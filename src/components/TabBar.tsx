@@ -53,7 +53,7 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
       {...attributes}
       {...listeners}
       onClick={onActivate}
-      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium select-none cursor-pointer border-b-2 transition-colors whitespace-nowrap ${
+      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium select-none cursor-pointer border-b-2 rounded-t-md transition-colors whitespace-nowrap ${
         isActive
           ? 'border-b-cafe-primary text-cafe-primary bg-cafe-surface'
           : 'border-b-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'

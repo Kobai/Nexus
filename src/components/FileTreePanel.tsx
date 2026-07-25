@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, memo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X } from 'lucide-react';
 import { FileNode } from '../types';
 import { FileViewerModal } from './FileViewerModal';
+
+const treeCache = new Map<string, { data: FileNode[] }>();
+const SEARCH_DEBOUNCE = 150;
 
 function flattenTree(nodes: FileNode[]): FileNode[] {
   const result: FileNode[] = [];
@@ -27,7 +30,7 @@ interface TreeNodeProps {
   onOpenFile: (path: string) => void;
 }
 
-function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
+const TreeNode = memo(function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
   const [open, setOpen] = useState(false);
 
   if (!node.is_dir) {
@@ -67,7 +70,7 @@ function TreeNode({ node, depth, onOpenFile }: TreeNodeProps) {
       ))}
     </div>
   );
-}
+});
 
 export function FileTreePanel({ projectId }: Props) {
   const [tree, setTree] = useState<FileNode[] | null>(null);
@@ -75,15 +78,40 @@ export function FileTreePanel({ projectId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [openFilePath, setOpenFilePath] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   useEffect(() => {
+    const cached = treeCache.get(projectId);
+    if (cached) {
+      setTree(cached.data);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     invoke<FileNode[]>('get_file_tree', { projectId, maxDepth: 4 })
-      .then(setTree)
+      .then((data) => {
+        treeCache.set(projectId, { data });
+        setTree(data);
+      })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const filteredFiles = useMemo(() => {
+    if (!debouncedQuery || !tree) return null;
+    return flattenTree(tree).filter(n =>
+      n.path.toLowerCase().includes(debouncedQuery.toLowerCase())
+    );
+  }, [debouncedQuery, tree]);
+
+  const showSearchResults = filteredFiles !== null;
 
   return (
     <>
@@ -97,10 +125,11 @@ export function FileTreePanel({ projectId }: Props) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search files..."
+              placeholder={tree === null ? 'Loading...' : 'Search files...'}
               autoCorrect="off"
               spellCheck={false}
-              className="w-full bg-cafe-hover border border-cafe-border rounded-lg px-2 py-1 text-xs text-cafe-text placeholder:text-cafe-border outline-none focus:border-cafe-primary transition-colors font-sans"
+              disabled={tree === null}
+              className="w-full bg-cafe-hover border border-cafe-border rounded-lg px-2 py-1 text-xs text-cafe-text placeholder:text-cafe-border outline-none focus:border-cafe-primary transition-colors font-sans disabled:opacity-50"
             />
             {query && (
               <button
@@ -122,29 +151,22 @@ export function FileTreePanel({ projectId }: Props) {
           {!loading && !error && tree !== null && (
             tree.length === 0 ? (
               <div className="px-3 py-4 text-xs text-cafe-border italic">Empty directory</div>
-            ) : query ? (
-              (() => {
-                const filtered = flattenTree(tree).filter(n =>
-                  n.path.toLowerCase().includes(query.toLowerCase())
-                );
-                return filtered.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-cafe-border italic">No files match</div>
-                ) : (
-                  filtered.map((node) => (
-                    <div
-                      key={node.path}
-                      className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-cafe-hover cursor-pointer rounded transition-colors"
-                      onClick={() => setOpenFilePath(node.path)}
-                    >
-                      <File size={12} className="text-cafe-border shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-xs text-cafe-text truncate">{node.name}</div>
-                        <div className="text-[10px] text-cafe-muted truncate">{node.path}</div>
-                      </div>
-                    </div>
-                  ))
-                );
-              })()
+            ) : showSearchResults && filteredFiles!.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-cafe-border italic">No files match</div>
+            ) : showSearchResults ? (
+              filteredFiles!.map((node) => (
+                <div
+                  key={node.path}
+                  className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-cafe-hover cursor-pointer rounded transition-colors"
+                  onClick={() => setOpenFilePath(node.path)}
+                >
+                  <File size={12} className="text-cafe-border shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs text-cafe-text truncate">{node.name}</div>
+                    <div className="text-[10px] text-cafe-muted truncate">{node.path}</div>
+                  </div>
+                </div>
+              ))
             ) : (
               tree.map((node) => (
                 <TreeNode key={node.path} node={node} depth={0} onOpenFile={setOpenFilePath} />
