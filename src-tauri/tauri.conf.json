@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Nexus",
-  "version": "0.1.0",
+  "version": "0.0.3",
   "identifier": "com.nexus.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -39,7 +39,7 @@
         "https://github.com/Kobai/Nexus/releases/latest/download/latest.json"
       ],
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBQjMyNjZCMzM0RERCQUMKUldTczIwMHpheWF6dW1kM0RqMzc2UkRtcnpWNFRzZUtORGRrNFhyaWwvcm44NnFuMTFCbHRSWEkK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ5MDEwRkRFRDlEOTQwRApSV1FObEozdC9SQ1FCRzQ0U2VUVjdsa2diUDNveno3eEdhMVIyZDRLdDVReVhoU1NIcjh4Q2FmcAo="
     }
   }
 }
