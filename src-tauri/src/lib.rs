@@ -1184,6 +1184,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let conn = open_db(app.handle()).expect("Failed to open database");
             app.manage(DbState(Mutex::new(conn)));

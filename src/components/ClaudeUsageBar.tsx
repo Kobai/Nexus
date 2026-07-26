@@ -115,7 +115,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           className="w-full h-1 rounded-full bg-cafe-border cursor-pointer overflow-hidden"
           title={
             tokens_in_window > 0
-              ? `${formatTokens(tokens_in_window)} tokens · last ${window_hours}h${countdownLabel ? ` · resets in ${countdownLabel}` : ''}`
+              ? `${pct !== null ? `${pct.toFixed(0)}%` : `${formatTokens(tokens_in_window)} tokens`} · last ${window_hours}h${countdownLabel ? ` · resets in ${countdownLabel}` : ''}`
               : `No Claude usage in last ${window_hours}h`
           }
           onClick={() => setShowModal(true)}
@@ -152,8 +152,7 @@ export function ClaudeUsageBar({ collapsed }: Props) {
           </span>
           <div className="flex items-center gap-1.5">
             <span className="text-cafe-primary text-xs font-mono">
-              {formatTokens(tokens_in_window)}
-              {settings.limit > 0 && ` / ${formatTokens(settings.limit)}`}
+              {pct !== null ? `${pct.toFixed(0)}%` : formatTokens(tokens_in_window)}
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); handleRefresh(); }}

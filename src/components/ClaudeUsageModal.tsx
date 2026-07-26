@@ -59,6 +59,7 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
   }
 
   const tokensInWindow = usage?.tokens_in_window ?? 0;
+  const pct = settings.limit > 0 ? Math.min((tokensInWindow / settings.limit) * 100, 100) : null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm">
@@ -69,8 +70,18 @@ export function ClaudeUsageModal({ usage, settings, onSave, onClose }: Props) {
         <div className="mb-5 bg-cafe-hover rounded-lg p-3 space-y-1.5 border border-cafe-border">
           <div className="flex justify-between">
             <span className="text-cafe-muted text-xs">Tokens this window</span>
-            <span className="text-cafe-primary text-xs font-mono font-medium">{formatTokens(tokensInWindow)}</span>
+            <span className="text-cafe-primary text-xs font-mono font-medium">
+              {pct !== null ? `${pct.toFixed(0)}%` : formatTokens(tokensInWindow)}
+            </span>
           </div>
+          {pct !== null && (
+            <div className="flex justify-between">
+              <span className="text-cafe-muted text-xs">Raw tokens</span>
+              <span className="text-cafe-text text-xs font-mono">
+                {formatTokens(tokensInWindow)} / {formatTokens(settings.limit)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-cafe-muted text-xs">Window size</span>
             <span className="text-cafe-text text-xs font-mono">{settings.window_hours}h rolling</span>

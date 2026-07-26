@@ -28,12 +28,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build universal macOS app
-        run: npm run tauri build -- --target universal-apple-darwin
-
-      - name: Upload release artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Build, sign, and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          files: |
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Nexus ${{ github.ref_name }}'
+          releaseDraft: false
+          prerelease: false
+          args: --target universal-apple-darwin

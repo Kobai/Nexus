@@ -24,6 +24,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { NewSessionModal } from './NewSessionModal';
 import { AddProjectModal } from './AddProjectModal';
 import { ClaudeUsageBar } from './ClaudeUsageBar';
+import { UpdateButton } from './UpdateButton';
 import { Project, Session, Tab } from '../types';
 
 const EMPTY_TABS: Tab[] = [];
@@ -351,6 +352,9 @@ export function Sidebar() {
 
       {/* Claude Usage */}
       <ClaudeUsageBar collapsed={collapsed} />
+
+      {/* Update Checker */}
+      <UpdateButton collapsed={collapsed} />
 
       {/* Resize handle */}
       {!collapsed && (

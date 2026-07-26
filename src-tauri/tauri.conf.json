@@ -33,5 +33,13 @@
     ]
   },
   "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/Kobai/Nexus/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBQjMyNjZCMzM0RERCQUMKUldTczIwMHpheWF6dW1kM0RqMzc2UkRtcnpWNFRzZUtORGRrNFhyaWwvcm44NnFuMTFCbHRSWEkK"
+    }
   }
 }
