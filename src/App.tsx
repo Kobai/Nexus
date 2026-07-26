@@ -5,6 +5,7 @@ import { useProjectStore } from './store/projectStore';
 import { useSessionStore } from './store/sessionStore';
 import { useTabStore } from './store/tabStore';
 import { useTerminalStore } from './store/terminalStore';
+import { base64ToBytes } from './utils/base64';
 import { Sidebar } from './components/Sidebar';
 import { MainWindow } from './components/MainWindow';
 import { RightSidebar } from './components/RightSidebar';
@@ -43,8 +44,8 @@ export default function App() {
     let unlistenOutput: (() => void) | undefined;
     let unlistenExit: (() => void) | undefined;
 
-    listen<{ tab_id: string; data: number[] }>('pty-output', ({ payload }) => {
-      terminalStore.write(payload.tab_id, new Uint8Array(payload.data));
+    listen<{ tab_id: string; data: string }>('pty-output', ({ payload }) => {
+      terminalStore.write(payload.tab_id, base64ToBytes(payload.data));
     }).then((f) => { unlistenOutput = f; });
 
     listen<{ tab_id: string }>('pty-exit', ({ payload }) => {

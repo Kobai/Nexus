@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use anyhow::Result;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,9 @@ pub struct FileNode {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PtyOutputPayload {
     pub tab_id: String,
-    pub data: Vec<u8>,
+    /// Base64-encoded bytes — avoids JSON-serializing a raw Vec<u8> as a
+    /// per-byte number array, which is far heavier over IPC for chatty PTY output.
+    pub data: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -275,7 +278,7 @@ fn spawn_pty(
                         "pty-output",
                         PtyOutputPayload {
                             tab_id: tab_id_clone.clone(),
-                            data: buf[..n].to_vec(),
+                            data: BASE64.encode(&buf[..n]),
                         },
                     );
                 }
@@ -762,10 +765,11 @@ fn close_tab(tab_id: String, db: State<DbState>, pty_state: State<PtyState>) -> 
 }
 
 #[tauri::command]
-fn pty_write(tab_id: String, data: Vec<u8>, pty_state: State<PtyState>) -> Result<(), String> {
+fn pty_write(tab_id: String, data: String, pty_state: State<PtyState>) -> Result<(), String> {
+    let bytes = BASE64.decode(&data).map_err(|e| e.to_string())?;
     let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
     if let Some(handle) = pty_manager.handles.get_mut(&tab_id) {
-        handle.writer.write_all(&data).map_err(|e| e.to_string())?;
+        handle.writer.write_all(&bytes).map_err(|e| e.to_string())?;
     }
     Ok(())
 }

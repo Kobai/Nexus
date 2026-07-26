@@ -64,25 +64,29 @@ export function MainWindow() {
       {activeSessionId && <TabBar sessionId={activeSessionId} />}
 
       <div className="flex-1 relative min-h-0">
-        {/* Only render the active session's terminals; inactive sessions are unmounted */}
-        {activeTabs.map((tab) => {
-          const visible = activeTabId[activeSessionId!] === tab.id;
-          return (
-            <div
-              key={tab.id}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                visibility: visible ? 'visible' : 'hidden',
-              }}
-            >
-              <XtermTerminal
-                tabId={tab.id}
-                sessionId={activeSessionId!}
-              />
-            </div>
-          );
-        })}
+        {/* Render terminals for every session, not just the active one, so switching
+            projects only hides them instead of unmounting (and disposing) xterm. */}
+        {Object.entries(allTabs).flatMap(([sessionId, tabs]) =>
+          tabs.map((tab) => {
+            const visible = sessionId === activeSessionId && activeTabId[sessionId] === tab.id;
+            return (
+              <div
+                key={tab.id}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  visibility: visible ? 'visible' : 'hidden',
+                }}
+              >
+                <XtermTerminal
+                  tabId={tab.id}
+                  sessionId={sessionId}
+                  visible={visible}
+                />
+              </div>
+            );
+          })
+        )}
 
         {!activeSessionId && !hasAnySessions && (
           <div className="flex flex-col items-center justify-center h-full gap-2">
