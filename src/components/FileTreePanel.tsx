@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, memo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X, RefreshCw } from 'lucide-react';
 import { FileNode } from '../types';
 import { FileViewerModal } from './FileViewerModal';
 
@@ -80,13 +80,15 @@ export function FileTreePanel({ projectId }: Props) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  useEffect(() => {
-    const cached = treeCache.get(projectId);
-    if (cached) {
-      setTree(cached.data);
-      setLoading(false);
-      setError(null);
-      return;
+  const fetchTree = (force: boolean) => {
+    if (!force) {
+      const cached = treeCache.get(projectId);
+      if (cached) {
+        setTree(cached.data);
+        setLoading(false);
+        setError(null);
+        return;
+      }
     }
     setLoading(true);
     setError(null);
@@ -97,6 +99,10 @@ export function FileTreePanel({ projectId }: Props) {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTree(false);
   }, [projectId]);
 
   useEffect(() => {
@@ -116,8 +122,16 @@ export function FileTreePanel({ projectId }: Props) {
   return (
     <>
       <div className="flex flex-col h-full bg-cafe-surface">
-        <div className="px-3 py-2 border-b border-cafe-border shrink-0">
+        <div className="px-3 py-2 border-b border-cafe-border shrink-0 flex items-center justify-between">
           <span className="text-xs font-semibold text-cafe-primary tracking-wide">Files</span>
+          <button
+            onClick={() => fetchTree(true)}
+            disabled={loading}
+            title="Refresh file tree"
+            className="text-cafe-border hover:text-cafe-primary transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
         <div className="px-2 py-1.5 border-b border-cafe-border shrink-0">
           <div className="relative flex items-center">
