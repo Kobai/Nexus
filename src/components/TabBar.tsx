@@ -110,9 +110,9 @@ export function TabBar({ sessionId }: Props) {
     reorderTabs(sessionId, newOrder.map((t) => t.id));
   }
 
-  async function handleClose(tab: Tab) {
+  function handleClose(tab: Tab) {
     unregisterTerminal(tab.id);
-    await invoke('close_tab', { tabId: tab.id });
+    invoke('close_tab', { tabId: tab.id }).catch(() => {});
     removeTab(tab.id);
   }
 

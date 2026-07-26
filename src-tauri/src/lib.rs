@@ -415,22 +415,48 @@ fn remove_project(
     db: State<DbState>,
     pty_state: State<PtyState>,
 ) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    // Gather everything we need from the DB up front, then release the lock
+    // before doing any slow filesystem work (git worktree remove can take a
+    // long time on large worktrees) — holding the DB mutex across that call
+    // would freeze every other command in the app.
+    let (tab_ids, worktree_sessions, project_path) = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
 
-    // Get all tab IDs for this project's sessions
-    let tab_ids: Vec<String> = {
-        let mut stmt = conn
-            .prepare(
-                "SELECT tt.id FROM terminal_tabs tt
-                 JOIN sessions s ON s.id = tt.session_id
-                 WHERE s.project_id = ?1",
-            )
+        let tab_ids: Vec<String> = {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT tt.id FROM terminal_tabs tt
+                     JOIN sessions s ON s.id = tt.session_id
+                     WHERE s.project_id = ?1",
+                )
+                .map_err(|e| e.to_string())?;
+            let result = stmt.query_map([&id], |row| row.get(0))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            result
+        };
+
+        let worktree_sessions: Vec<(String, String)> = {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT worktree_path, project_id FROM sessions WHERE project_id = ?1 AND is_worktree = 1 AND worktree_path IS NOT NULL",
+                )
+                .map_err(|e| e.to_string())?;
+            let result = stmt.query_map([&id], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            result
+        };
+
+        let project_path: String = conn
+            .query_row("SELECT path FROM projects WHERE id = ?1", [&id], |row| {
+                row.get(0)
+            })
             .map_err(|e| e.to_string())?;
-        let result = stmt.query_map([&id], |row| row.get(0))
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
-        result
+
+        (tab_ids, worktree_sessions, project_path)
     };
 
     // Kill PTYs
@@ -443,33 +469,14 @@ fn remove_project(
         }
     }
 
-    // Get worktree sessions and remove worktrees
-    let worktree_sessions: Vec<(String, String)> = {
-        let mut stmt = conn
-            .prepare(
-                "SELECT worktree_path, project_id FROM sessions WHERE project_id = ?1 AND is_worktree = 1 AND worktree_path IS NOT NULL",
-            )
-            .map_err(|e| e.to_string())?;
-        let result = stmt.query_map([&id], |row| Ok((row.get(0)?, row.get(1)?)))
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
-        result
-    };
-
-    // Get project path for worktree removal
-    let project_path: String = conn
-        .query_row("SELECT path FROM projects WHERE id = ?1", [&id], |row| {
-            row.get(0)
-        })
-        .map_err(|e| e.to_string())?;
-
+    // Remove worktrees (slow filesystem work, done without holding the DB lock)
     for (worktree_path, _) in worktree_sessions {
         let _ = std::process::Command::new("git")
             .args(["-C", &project_path, "worktree", "remove", "--force", &worktree_path])
             .output();
     }
 
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM projects WHERE id = ?1", [&id])
         .map_err(|e| e.to_string())?;
 
@@ -649,18 +656,33 @@ fn stop_session(
     db: State<DbState>,
     pty_state: State<PtyState>,
 ) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    // Gather everything we need from the DB up front, then release the lock
+    // before doing any slow filesystem work (git worktree remove can take a
+    // long time on large worktrees) — holding the DB mutex across that call
+    // would freeze every other command in the app.
+    let (tab_ids, worktree_session) = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
 
-    // Get tab IDs for this session
-    let tab_ids: Vec<String> = {
-        let mut stmt = conn
-            .prepare("SELECT id FROM terminal_tabs WHERE session_id = ?1")
-            .map_err(|e| e.to_string())?;
-        let result = stmt.query_map([&id], |row| row.get(0))
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
-        result
+        let tab_ids: Vec<String> = {
+            let mut stmt = conn
+                .prepare("SELECT id FROM terminal_tabs WHERE session_id = ?1")
+                .map_err(|e| e.to_string())?;
+            let result = stmt.query_map([&id], |row| row.get(0))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            result
+        };
+
+        let worktree_session: Option<(String, String)> = conn
+            .query_row(
+                "SELECT s.worktree_path, p.path FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.id = ?1 AND s.is_worktree = 1",
+                [&id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        (tab_ids, worktree_session)
     };
 
     // Kill PTYs
@@ -673,21 +695,14 @@ fn stop_session(
         }
     }
 
-    // Worktree cleanup
-    let session: Option<(String, String)> = conn
-        .query_row(
-            "SELECT s.worktree_path, p.path FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.id = ?1 AND s.is_worktree = 1",
-            [&id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .ok();
-
-    if let Some((worktree_path, project_path)) = session {
+    // Worktree cleanup (slow filesystem work, done without holding the DB lock)
+    if let Some((worktree_path, project_path)) = worktree_session {
         let _ = std::process::Command::new("git")
             .args(["-C", &project_path, "worktree", "remove", "--force", &worktree_path])
             .output();
     }
 
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM sessions WHERE id = ?1", [&id])
         .map_err(|e| e.to_string())?;
 
