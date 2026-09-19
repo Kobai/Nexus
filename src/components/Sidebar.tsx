@@ -20,6 +20,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useSessionStore } from '../store/sessionStore';
 import { useTabStore } from '../store/tabStore';
 import { useTerminalStore } from '../store/terminalStore';
+import { useAttentionStore } from '../store/attentionStore';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewSessionModal } from './NewSessionModal';
 import { AddProjectModal } from './AddProjectModal';
@@ -38,9 +39,11 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
   const tabs = useTabStore((s) => s.tabs[session.id] ?? EMPTY_TABS);
   const removeTab = useTabStore((s) => s.removeTab);
   const unregisterTerminal = useTerminalStore((s) => s.unregisterTerminal);
+  const attentionTabs = useAttentionStore((s) => s.tabs);
   const [confirmStop, setConfirmStop] = useState(false);
 
   const isActive = activeSessionId === session.id;
+  const needsAttention = tabs.some((t) => attentionTabs[t.id]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -79,6 +82,9 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
           isActive ? 'bg-cafe-primary' : 'bg-cafe-border group-hover:bg-cafe-muted'
         }`} />
         <span className="truncate flex-1">{session.name}</span>
+        {needsAttention && (
+          <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
           className="opacity-0 group-hover:opacity-100 text-cafe-danger hover:text-red-700 text-xs px-1 transition-colors"
@@ -115,6 +121,7 @@ function ProjectItem({
   const tabs = useTabStore((s) => s.tabs);
   const removeTab = useTabStore((s) => s.removeTab);
   const unregisterTerminal = useTerminalStore((s) => s.unregisterTerminal);
+  const attentionTabs = useAttentionStore((s) => s.tabs);
   const reorderSessions = useSessionStore((s) => s.reorderSessions);
   const [collapsed, setCollapsed] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
@@ -128,6 +135,10 @@ function ProjectItem({
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const needsAttention = sessions.some((session) =>
+    (tabs[session.id] ?? EMPTY_TABS).some((t) => attentionTabs[t.id]),
+  );
 
   function handleSessionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -158,11 +169,14 @@ function ProjectItem({
         ref={setNodeRef}
         style={style}
         title={project.name}
-        className="w-12 h-12 flex items-center justify-center text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover cursor-pointer transition-colors rounded-md mx-auto my-0.5"
+        className="relative w-12 h-12 flex items-center justify-center text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover cursor-pointer transition-colors rounded-md mx-auto my-0.5"
         {...attributes}
         {...listeners}
       >
         <Folder size={16} />
+        {needsAttention && (
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-cafe-danger" />
+        )}
       </div>
     );
   }
@@ -188,6 +202,9 @@ function ProjectItem({
           </button>
           <Folder size={14} className="text-cafe-primary/60 flex-shrink-0" />
           <span className="text-cafe-text text-xs font-semibold truncate tracking-wide uppercase">{project.name}</span>
+          {needsAttention && (
+            <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
+          )}
         </div>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <button

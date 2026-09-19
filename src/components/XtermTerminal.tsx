@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { invoke } from '@tauri-apps/api/core';
 import { useTerminalStore } from '../store/terminalStore';
+import { useAttentionStore } from '../store/attentionStore';
 import { bytesToBase64 } from '../utils/base64';
 import '@xterm/xterm/css/xterm.css';
 
@@ -106,6 +107,7 @@ export function XtermTerminal({ tabId, visible }: Props) {
     if (!term) return;
     term.options.cursorBlink = visible;
     if (visible) {
+      useAttentionStore.getState().clearAttention(tabId);
       // Size may be stale if this tab was hidden while its container resized.
       fitAddonRef.current?.fit();
       invoke('pty_resize', { tabId, cols: term.cols, rows: term.rows });

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -7,8 +8,13 @@ use std::time::Instant;
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use regex::Regex;
+use reqwest::blocking::Client;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use serde_yaml;
+use walkdir::WalkDir;
 use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
@@ -70,6 +76,58 @@ pub struct PtyOutputPayload {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PtyExitPayload {
     pub tab_id: String,
+}
+
+// ─── API Addon Types ──────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EnvVar {
+    pub key: String,
+    pub value: String,
+    pub env_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApiEndpoint {
+    pub method: String,
+    pub path: String,
+    pub summary: String,
+    pub operation_id: String,
+    pub parameters: Vec<ApiParameter>,
+    pub request_body: Option<JsonValue>,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApiParameter {
+    pub name: String,
+    pub param_in: String,
+    pub required: bool,
+    pub param_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApiSpecData {
+    pub spec_path: String,
+    pub spec_name: String,
+    pub base_url: String,
+    pub endpoints: Vec<ApiEndpoint>,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApiCallRequest {
+    pub url: String,
+    pub method: String,
+    pub headers: HashMap<String, String>,
+    pub body: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiCallResponse {
+    pub status: u16,
+    pub body: String,
+    pub headers: HashMap<String, String>,
 }
 
 // ─── Usage Types ─────────────────────────────────────────────────────────────
@@ -152,6 +210,9 @@ pub struct PtyState(pub Mutex<PtyManager>);
 /// Cache for get_claude_usage — invalidated after 60 s so the countdown stays
 /// reasonably fresh without hammering the filesystem on every render.
 pub struct UsageCache(pub Mutex<Option<(Instant, UsageResult)>>);
+/// Shared blocking client so `call_api` reuses pooled TCP/TLS connections
+/// instead of paying a fresh handshake on every request.
+pub struct HttpClientState(pub Client);
 
 // ─── DB Helpers ──────────────────────────────────────────────────────────────
 
@@ -765,6 +826,7 @@ fn create_tab(
 
 #[tauri::command]
 fn close_tab(tab_id: String, db: State<DbState>, pty_state: State<PtyState>) -> Result<(), String> {
+    eprintln!("[DEBUG] close_tab invoked for {}", tab_id);
     {
         let mut pty_manager = pty_state.0.lock().map_err(|e| e.to_string())?;
         if let Some(mut handle) = pty_manager.handles.remove(&tab_id) {
@@ -1140,6 +1202,246 @@ fn fetch_and_pull_branch(
 }
 
 #[tauri::command]
+fn get_openapi_specs(project_id: String, db: State<DbState>) -> Result<Vec<String>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row("SELECT path FROM projects WHERE id = ?1", [&project_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    drop(conn);
+
+    eprintln!("[API] Looking for openapi specs in: {:?}", path);
+    eprintln!("[API] Project path exists: {}", std::path::PathBuf::from(&path).exists());
+    let openapi_names = ["openapi.json", "openapi.yaml", "openapi.yml", "swagger.json", "swagger.yaml", "swagger.yml"];
+    const EXCLUDED_DIRS: [&str; 10] = [
+        "node_modules", ".git", "target", "dist", "build", ".venv", "venv", "vendor", ".next", "__pycache__",
+    ];
+    let mut spec_files = Vec::new();
+    let project_path = std::path::PathBuf::from(&path);
+    if project_path.exists() {
+        let walker = WalkDir::new(&project_path)
+            .follow_links(false)
+            .max_depth(8)
+            .into_iter()
+            .filter_entry(|e| !e.file_type().is_dir() || !EXCLUDED_DIRS.contains(&e.file_name().to_string_lossy().as_ref()));
+        for entry in walker {
+            match entry {
+                Ok(e) => {
+                    if !e.file_type().is_file() { continue; }
+                    let name = e.file_name().to_string_lossy().to_lowercase();
+                    if openapi_names.iter().any(|n| name == *n) {
+                        eprintln!("[API] Found spec: {}", e.path().to_string_lossy());
+                        spec_files.push(e.path().to_string_lossy().to_string());
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[API] WalkDir error: {:?}", e);
+                    continue;
+                }
+            }
+        }
+    } else {
+        eprintln!("[API] Project path does not exist!");
+    }
+    eprintln!("[API] Found {} spec files total", spec_files.len());
+    Ok(spec_files)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+fn read_openapi_spec(_project_id: String, specPath: String) -> Result<ApiSpecData, String> {
+    eprintln!("[API] read_openapi_spec called with path: {}", specPath);
+    eprintln!("[API] Reading file: {}", specPath);
+    let content = fs::read_to_string(&specPath).map_err(|e| {
+        eprintln!("[API] Failed to read file: {} - {}", specPath, e);
+        e.to_string()
+    })?;
+    eprintln!("[API] Spec content length: {}", content.len());
+    let spec_name = PathBuf::from(&specPath)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "openapi.json".to_string());
+
+    let json_value: JsonValue = if specPath.to_lowercase().ends_with(".yaml") || specPath.to_lowercase().ends_with(".yml") {
+        serde_yaml::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    };
+
+    let base_url = json_value.get("servers")
+        .and_then(|s| s.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .unwrap_or("http://localhost")
+        .to_string();
+    eprintln!("[API] Base URL: {}", base_url);
+
+    let empty_map = serde_json::Map::new();
+
+    // Map security scheme name -> header name, for apiKey/header schemes only.
+    let mut api_key_header_schemes: HashMap<String, String> = HashMap::new();
+    if let Some(schemes) = json_value.get("components").and_then(|c| c.get("securitySchemes")).and_then(|s| s.as_object()) {
+        for (scheme_name, scheme) in schemes {
+            let scheme_type = scheme.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let scheme_in = scheme.get("in").and_then(|i| i.as_str()).unwrap_or("");
+            if scheme_type == "apiKey" && scheme_in == "header" {
+                if let Some(header_name) = scheme.get("name").and_then(|n| n.as_str()) {
+                    api_key_header_schemes.insert(scheme_name.clone(), header_name.to_string());
+                }
+            }
+        }
+    }
+    let global_security = json_value.get("security").and_then(|s| s.as_array());
+
+    let paths = json_value.get("paths").and_then(|p| p.as_object()).unwrap_or(&empty_map);
+    eprintln!("[API] Number of paths: {}", paths.len());
+    let mut endpoints = Vec::new();
+    let mut tags = Vec::new();
+
+    for (path_str, path_item) in paths {
+        let path_obj = path_item.as_object().unwrap_or(&empty_map);
+        for (method, operation) in path_obj {
+            let method_lower = method.to_lowercase();
+            if ["get", "post", "put", "delete", "patch", "options", "head"].contains(&method_lower.as_str()) {
+                let op_obj = operation.as_object().unwrap_or(&empty_map);
+                let summary = op_obj.get("summary").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                let default_id = format!("{}_{}", method_lower, path_str.replace('/', "_"));
+                let operation_id = op_obj.get("operationId").and_then(|s| s.as_str()).map(|s| s.to_string()).unwrap_or(default_id);
+                let tag = op_obj.get("tags").and_then(|t| t.as_array()).and_then(|arr| arr.first()).and_then(|t| t.as_str()).map(|s| s.to_string()).unwrap_or_else(|| method_lower.clone());
+                if !tags.contains(&tag) { tags.push(tag.clone()); }
+                let endpoint_tags = op_obj.get("tags").and_then(|t| t.as_array()).map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_else(|| vec![tag.clone()]);
+
+                let mut parameters = Vec::new();
+                if let Some(params) = op_obj.get("parameters").and_then(|p| p.as_array()) {
+                    for param in params {
+                        let param_obj = param.as_object().unwrap_or(&empty_map);
+                        parameters.push(ApiParameter {
+                            name: param_obj.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+                            param_in: param_obj.get("in").and_then(|i| i.as_str()).unwrap_or("").to_string(),
+                            required: param_obj.get("required").and_then(|r| r.as_bool()).unwrap_or(false),
+                            param_type: param_obj.get("schema").and_then(|s| s.get("type")).and_then(|t| t.as_str()).unwrap_or("string").to_string(),
+                        });
+                    }
+                }
+
+                if !api_key_header_schemes.is_empty() {
+                    let security = op_obj.get("security").and_then(|s| s.as_array()).or(global_security);
+                    if let Some(security) = security {
+                        for requirement in security {
+                            if let Some(scheme_names) = requirement.as_object().map(|o| o.keys()) {
+                                for scheme_name in scheme_names {
+                                    if let Some(header_name) = api_key_header_schemes.get(scheme_name) {
+                                        let already_present = parameters.iter().any(|p: &ApiParameter| p.name.eq_ignore_ascii_case(header_name));
+                                        if !already_present {
+                                            parameters.push(ApiParameter {
+                                                name: header_name.clone(),
+                                                param_in: "header".to_string(),
+                                                required: true,
+                                                param_type: "string".to_string(),
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let request_body = op_obj.get("requestBody").cloned();
+
+                endpoints.push(ApiEndpoint {
+                    method: method_upper(&method_lower),
+                    path: path_str.clone(),
+                    summary,
+                    operation_id,
+                    parameters,
+                    request_body,
+                    tags: endpoint_tags,
+                });
+            }
+        }
+    }
+
+    tags.sort();
+    endpoints.sort_by(|a, b| a.method.cmp(&b.method).then(a.path.cmp(&b.path)));
+    eprintln!("[API] Total endpoints: {}, tags: {:?}", endpoints.len(), tags);
+
+    Ok(ApiSpecData {
+        spec_path: specPath,
+        spec_name,
+        base_url,
+        endpoints,
+        tags,
+    })
+}
+#[tauri::command]
+fn get_env_file(project_id: String, db: State<DbState>) -> Result<Vec<EnvVar>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let path: String = conn
+        .query_row("SELECT path FROM projects WHERE id = ?1", [&project_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    drop(conn);
+
+    let env_names = [".env.local", ".env.prod"];
+    let mut env_vars = Vec::new();
+
+    for env_file in &env_names {
+        let env_path = PathBuf::from(&path).join(env_file);
+        if env_path.exists() {
+            let content = fs::read_to_string(&env_path).map_err(|e| e.to_string())?;
+            let re = Regex::new(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$").unwrap();
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
+                if let Some(caps) = re.captures(trimmed) {
+                    let key = caps[1].to_string();
+                    let value = caps[2].trim().trim_matches('"').trim_matches('\'').to_string();
+                    env_vars.push(EnvVar {
+                        key: key.clone(),
+                        value: value.clone(),
+                        env_name: env_file.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(env_vars)
+}
+
+#[tauri::command]
+fn call_api(request: ApiCallRequest, client: State<HttpClientState>) -> Result<ApiCallResponse, String> {
+    let client = &client.0;
+    let method = match request.method.to_lowercase().as_str() {
+        "get" => reqwest::Method::GET,
+        "post" => reqwest::Method::POST,
+        "put" => reqwest::Method::PUT,
+        "delete" => reqwest::Method::DELETE,
+        "patch" => reqwest::Method::PATCH,
+        _ => reqwest::Method::GET,
+    };
+
+    let mut req = client.request(method.clone(), &request.url);
+
+    for (key, value) in &request.headers {
+        req = req.header(key, value);
+    }
+
+    if let Some(body) = &request.body {
+        req = req.body(body.clone());
+    }
+
+    let response = req.send().map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    let headers: HashMap<String, String> = response.headers().iter()
+        .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect();
+    let body = response.text().map_err(|e| e.to_string())?;
+
+    Ok(ApiCallResponse { status, body, headers })
+}
+
+#[tauri::command]
 fn restore_ptys(
     app_handle: AppHandle,
     db: State<DbState>,
@@ -1183,6 +1485,14 @@ fn restore_ptys(
     Ok(())
 }
 
+fn method_upper(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
@@ -1206,6 +1516,7 @@ pub fn run() {
             app.manage(DbState(Mutex::new(conn)));
             app.manage(PtyState(Mutex::new(PtyManager::new())));
             app.manage(UsageCache(Mutex::new(None)));
+            app.manage(HttpClientState(Client::new()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1232,6 +1543,10 @@ pub fn run() {
             invalidate_usage_cache,
             restore_ptys,
             fetch_and_pull_branch,
+            get_openapi_specs,
+            read_openapi_spec,
+            get_env_file,
+            call_api,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

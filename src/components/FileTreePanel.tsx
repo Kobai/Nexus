@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState, memo } from 'react';
+import { useEffect, useMemo, useState, memo, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X, RefreshCw } from 'lucide-react';
 import { FileNode } from '../types';
-import { FileViewerModal } from './FileViewerModal';
+
+// react-markdown, remark-gfm, react-syntax-highlighter (full Prism), and mermaid
+// only matter once a file preview is actually opened — lazy-load so their ~1MB+
+// of JS isn't parsed on every app cold start.
+const FileViewerModal = lazy(() => import('./FileViewerModal').then((m) => ({ default: m.FileViewerModal })));
 
 const treeCache = new Map<string, { data: FileNode[] }>();
 const SEARCH_DEBOUNCE = 150;
@@ -191,7 +195,9 @@ export function FileTreePanel({ projectId }: Props) {
       </div>
 
       {openFilePath && (
-        <FileViewerModal path={openFilePath} onClose={() => setOpenFilePath(null)} />
+        <Suspense fallback={null}>
+          <FileViewerModal path={openFilePath} onClose={() => setOpenFilePath(null)} />
+        </Suspense>
       )}
     </>
   );

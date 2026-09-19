@@ -5,6 +5,7 @@ import { useProjectStore } from './store/projectStore';
 import { useSessionStore } from './store/sessionStore';
 import { useTabStore } from './store/tabStore';
 import { useTerminalStore } from './store/terminalStore';
+import { useAttentionStore } from './store/attentionStore';
 import { base64ToBytes } from './utils/base64';
 import { Sidebar } from './components/Sidebar';
 import { MainWindow } from './components/MainWindow';
@@ -45,7 +46,23 @@ export default function App() {
     let unlistenExit: (() => void) | undefined;
 
     listen<{ tab_id: string; data: string }>('pty-output', ({ payload }) => {
-      terminalStore.write(payload.tab_id, base64ToBytes(payload.data));
+      const bytes = base64ToBytes(payload.data);
+      terminalStore.write(payload.tab_id, bytes);
+
+      // Terminal bell (BEL, 0x07) — Claude Code emits this on completion /
+      // permission prompts when its terminal_bell notification is enabled.
+      if (bytes.includes(0x07)) {
+        const { getSessionIdForTab, activeTabId } = useTabStore.getState();
+        const sessionId = getSessionIdForTab(payload.tab_id);
+        const isVisible =
+          sessionId !== undefined &&
+          sessionId === useSessionStore.getState().activeSessionId &&
+          activeTabId[sessionId] === payload.tab_id;
+
+        const { markAttention, clearAttention } = useAttentionStore.getState();
+        if (isVisible) clearAttention(payload.tab_id);
+        else markAttention(payload.tab_id);
+      }
     }).then((f) => { unlistenOutput = f; });
 
     listen<{ tab_id: string }>('pty-exit', ({ payload }) => {

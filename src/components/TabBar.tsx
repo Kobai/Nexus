@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { invoke } from '@tauri-apps/api/core';
 import { useTabStore } from '../store/tabStore';
 import { useTerminalStore } from '../store/terminalStore';
+import { useAttentionStore } from '../store/attentionStore';
 import { Tab } from '../types';
 
 const EMPTY_TABS: Tab[] = [];
@@ -24,12 +25,13 @@ const EMPTY_TABS: Tab[] = [];
 interface TabItemProps {
   tab: Tab;
   isActive: boolean;
+  needsAttention: boolean;
   onActivate: () => void;
   onClose: () => void;
   onRename: (title: string) => void;
 }
 
-function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps) {
+function TabItem({ tab, isActive, needsAttention, onActivate, onClose, onRename }: TabItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: tab.id });
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(tab.title);
@@ -76,7 +78,11 @@ function TabItem({ tab, isActive, onActivate, onClose, onRename }: TabItemProps)
           {tab.title}
         </span>
       )}
+      {needsAttention && (
+        <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
+      )}
       <button
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onClose(); }}
         className={`ml-0.5 leading-none transition-colors ${
           isActive ? 'text-cafe-muted hover:text-cafe-danger' : 'text-cafe-border hover:text-cafe-danger'
@@ -98,6 +104,7 @@ export function TabBar({ sessionId }: Props) {
   const { setActiveTab, reorderTabs } = useTabStore();
   const { renameTab, removeTab } = useTabStore();
   const unregisterTerminal = useTerminalStore((s) => s.unregisterTerminal);
+  const attentionTabs = useAttentionStore((s) => s.tabs);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -139,6 +146,7 @@ export function TabBar({ sessionId }: Props) {
               key={tab.id}
               tab={tab}
               isActive={tab.id === activeTabId}
+              needsAttention={!!attentionTabs[tab.id]}
               onActivate={() => setActiveTab(sessionId, tab.id)}
               onClose={() => handleClose(tab)}
               onRename={(title) => handleRename(tab.id, title)}

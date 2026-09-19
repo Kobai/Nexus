@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { GitBranch, FolderTree } from 'lucide-react';
+import { GitBranch, FolderTree, Server } from 'lucide-react';
 import { useSessionStore } from '../store/sessionStore';
 import { GitDiffPanel } from './GitDiffPanel';
 import { FileTreePanel } from './FileTreePanel';
+import { ApiPanel } from './ApiPanel';
 
-type Panel = 'git' | 'filetree';
+type Panel = 'git' | 'filetree' | 'api';
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 600;
@@ -108,6 +109,9 @@ export function RightSidebar() {
           {activeProjectId && activePanel === 'filetree' && (
             <FileTreePanel projectId={activeProjectId} />
           )}
+          {activeProjectId && activePanel === 'api' && (
+            <ApiPanel projectId={activeProjectId} />
+          )}
         </div>
       </div>
 
@@ -124,6 +128,12 @@ export function RightSidebar() {
           active={activePanel === 'filetree'}
           onClick={() => toggle('filetree')}
           title="File Tree"
+        />
+        <IconButton
+          icon={Server}
+          active={activePanel === 'api'}
+          onClick={() => toggle('api')}
+          title="API"
         />
       </div>
     </div>

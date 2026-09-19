@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { useAttentionStore } from './attentionStore';
 import { Tab } from '../types';
 
 interface TabStore {
@@ -37,7 +38,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
       },
       activeTabId: { ...s.activeTabId, [tab.session_id]: tab.id },
     })),
-  removeTab: (tabId) =>
+  removeTab: (tabId) => {
+    useAttentionStore.getState().clearAttention(tabId);
     set((s) => {
       const next: Record<string, Tab[]> = {};
       const nextActive = { ...s.activeTabId };
@@ -49,7 +51,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
         }
       }
       return { tabs: next, activeTabId: nextActive };
-    }),
+    });
+  },
   setActiveTab: (sessionId, tabId) =>
     set((s) => ({ activeTabId: { ...s.activeTabId, [sessionId]: tabId } })),
   renameTab: (tabId, title) =>
