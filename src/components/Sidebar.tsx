@@ -24,7 +24,6 @@ import { useAttentionStore } from '../store/attentionStore';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewSessionModal } from './NewSessionModal';
 import { AddProjectModal } from './AddProjectModal';
-import { ClaudeUsageBar } from './ClaudeUsageBar';
 import { UpdateButton } from './UpdateButton';
 import { Project, Session, Tab } from '../types';
 
@@ -79,12 +78,11 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         onClick={() => setActiveSession(session.id)}
       >
         <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-          isActive ? 'bg-cafe-primary' : 'bg-cafe-border group-hover:bg-cafe-muted'
+          needsAttention
+            ? 'bg-cafe-danger animate-blink'
+            : isActive ? 'bg-cafe-primary' : 'bg-cafe-border group-hover:bg-cafe-muted'
         }`} />
         <span className="truncate flex-1">{session.name}</span>
-        {needsAttention && (
-          <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
-        )}
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
           className="opacity-0 group-hover:opacity-100 text-cafe-danger hover:text-red-700 text-xs px-1 transition-colors"
@@ -366,9 +364,6 @@ export function Sidebar() {
           {collapsed ? '+' : '+ Add Project'}
         </button>
       </div>
-
-      {/* Claude Usage */}
-      <ClaudeUsageBar collapsed={collapsed} />
 
       {/* Update Checker */}
       <UpdateButton collapsed={collapsed} />

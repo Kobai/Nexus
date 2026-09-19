@@ -7,6 +7,7 @@ import { useTabStore } from './store/tabStore';
 import { useTerminalStore } from './store/terminalStore';
 import { useAttentionStore } from './store/attentionStore';
 import { base64ToBytes } from './utils/base64';
+import { feedApprovalPromptDetector, clearApprovalPromptDetector } from './utils/approvalPromptDetector';
 import { Sidebar } from './components/Sidebar';
 import { MainWindow } from './components/MainWindow';
 import { RightSidebar } from './components/RightSidebar';
@@ -49,9 +50,11 @@ export default function App() {
       const bytes = base64ToBytes(payload.data);
       terminalStore.write(payload.tab_id, bytes);
 
-      // Terminal bell (BEL, 0x07) — Claude Code emits this on completion /
-      // permission prompts when its terminal_bell notification is enabled.
-      if (bytes.includes(0x07)) {
+      // Flag the tab for attention only when Claude Code's own approval
+      // prompt text shows up — not on generic terminal bells, which get
+      // rung by all sorts of unrelated things (dev server output, shell
+      // completion, background jobs...).
+      if (feedApprovalPromptDetector(payload.tab_id, bytes)) {
         const { getSessionIdForTab, activeTabId } = useTabStore.getState();
         const sessionId = getSessionIdForTab(payload.tab_id);
         const isVisible =
@@ -72,6 +75,7 @@ export default function App() {
 
       const sessionId = getSessionIdForTab(payload.tab_id);
       unregisterTerminal(payload.tab_id);
+      clearApprovalPromptDetector(payload.tab_id);
 
       invoke('close_tab', { tabId: payload.tab_id }).catch(() => {});
       removeTab(payload.tab_id);

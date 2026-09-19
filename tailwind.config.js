@@ -22,6 +22,15 @@ export default {
         sans: ['Poppins', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
+      keyframes: {
+        blink: {
+          '0%, 49%': { opacity: '1' },
+          '50%, 100%': { opacity: '0' },
+        },
+      },
+      animation: {
+        blink: 'blink 1s step-start infinite',
+      },
     },
   },
   plugins: [],
