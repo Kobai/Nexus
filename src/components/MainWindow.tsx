@@ -34,8 +34,8 @@ export function MainWindow() {
         return;
       }
 
-      // cmd+n — new tab
-      if (e.key === 'n') {
+      // cmd+t — new tab
+      if (e.key === 't') {
         e.preventDefault();
         invoke<Tab>('create_tab', { sessionId: activeSessionId })
           .then((tab) => useTabStore.getState().addTab(tab))

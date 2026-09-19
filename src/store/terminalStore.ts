@@ -35,7 +35,13 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   unregisterTerminal: (tabId) =>
     set((s) => {
       const { [tabId]: removed, ...rest } = s.terminals;
-      removed?.term.dispose();
+      try {
+        removed?.term.dispose();
+      } catch {
+        // xterm/addon dispose() can throw (e.g. WebGL addon double-dispose
+        // after context loss) — never let that abort this state update,
+        // since callers rely on it completing before they remove the tab.
+      }
       const { [tabId]: _p, ...restPending } = s.pendingOutput;
       return { terminals: rest, pendingOutput: restPending };
     }),
