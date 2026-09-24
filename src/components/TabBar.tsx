@@ -79,7 +79,7 @@ function TabItem({ tab, isActive, needsAttention, onActivate, onClose, onRename 
         </span>
       )}
       {needsAttention && (
-        <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0 animate-blink" />
       )}
       <button
         onPointerDown={(e) => e.stopPropagation()}

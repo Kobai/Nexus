@@ -173,7 +173,7 @@ function ProjectItem({
       >
         <Folder size={16} />
         {needsAttention && (
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-cafe-danger" />
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-cafe-danger animate-blink" />
         )}
       </div>
     );
@@ -201,7 +201,7 @@ function ProjectItem({
           <Folder size={14} className="text-cafe-primary/60 flex-shrink-0" />
           <span className="text-cafe-text text-xs font-semibold truncate tracking-wide uppercase">{project.name}</span>
           {needsAttention && (
-            <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0 animate-blink" />
           )}
         </div>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
