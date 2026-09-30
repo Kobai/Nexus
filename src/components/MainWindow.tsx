@@ -5,6 +5,8 @@ import { useTabStore } from '../store/tabStore';
 import { useTerminalStore } from '../store/terminalStore';
 import { TabBar } from './TabBar';
 import { XtermTerminal } from './XtermTerminal';
+import { EmptyState } from './EmptyState';
+import { Coffee, TerminalSquare } from 'lucide-react';
 import { Tab } from '../types';
 
 export function MainWindow() {
@@ -89,16 +91,24 @@ export function MainWindow() {
         )}
 
         {!activeSessionId && !hasAnySessions && (
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            <p className="text-cafe-muted text-sm font-medium">No sessions yet</p>
-            <p className="text-cafe-border text-xs">Add a project and create a session to get started.</p>
-          </div>
+          <EmptyState
+            icon={Coffee}
+            title="No sessions yet"
+            hint="Add a project and create a session to get started."
+          />
         )}
 
         {activeSessionId && activeTabs.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-cafe-muted text-sm">No terminals open.</p>
-          </div>
+          <EmptyState
+            icon={TerminalSquare}
+            title="No terminals open"
+            hint="Open a new terminal in this session."
+            action={
+              <span className="text-cafe-muted text-xs">
+                Press <span className="kbd">⌘T</span>
+              </span>
+            }
+          />
         )}
       </div>
     </div>

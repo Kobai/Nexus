@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, memo, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X, RefreshCw } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File, X, RefreshCw, FolderX, SearchX } from 'lucide-react';
 import { FileNode } from '../types';
+import { toast } from '../store/toastStore';
 
 // react-markdown, remark-gfm, react-syntax-highlighter (full Prism), and mermaid
 // only matter once a file preview is actually opened — lazy-load so their ~1MB+
@@ -101,7 +102,7 @@ export function FileTreePanel({ projectId }: Props) {
         treeCache.set(projectId, { data });
         setTree(data);
       })
-      .catch((e) => setError(String(e)))
+      .catch((e) => { setError(String(e)); toast('Failed to load files', 'error'); })
       .finally(() => setLoading(false));
   };
 
@@ -143,7 +144,7 @@ export function FileTreePanel({ projectId }: Props) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={tree === null ? 'Loading...' : 'Search files...'}
+              placeholder="Search files..."
               autoCorrect="off"
               spellCheck={false}
               disabled={tree === null}
@@ -161,16 +162,32 @@ export function FileTreePanel({ projectId }: Props) {
         </div>
         <div className="flex-1 overflow-auto py-1">
           {loading && (
-            <div className="px-3 py-4 text-xs text-cafe-border">Loading...</div>
+            <div className="px-3 py-3 space-y-2 animate-fade-in">
+              {[60, 40, 75, 50, 65, 45, 55].map((w, i) => (
+                <div key={i} className="skeleton h-3.5 rounded" style={{ width: `${w}%`, marginLeft: i % 3 === 1 ? 12 : 0 }} />
+              ))}
+            </div>
           )}
           {error && (
             <div className="px-3 py-4 text-xs text-cafe-danger">{error}</div>
           )}
           {!loading && !error && tree !== null && (
             tree.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-cafe-border italic">Empty directory</div>
+              <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+                  <FolderX size={20} className="text-cafe-muted" />
+                </div>
+                <p className="text-xs font-semibold text-cafe-text">No files</p>
+                <p className="text-[11px] text-cafe-muted mt-1">This directory is empty</p>
+              </div>
             ) : showSearchResults && filteredFiles!.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-cafe-border italic">No files match</div>
+              <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+                  <SearchX size={20} className="text-cafe-muted" />
+                </div>
+                <p className="text-xs font-semibold text-cafe-text">No files match</p>
+                <p className="text-[11px] text-cafe-muted mt-1">Try a different search</p>
+              </div>
             ) : showSearchResults ? (
               filteredFiles!.map((node) => (
                 <div

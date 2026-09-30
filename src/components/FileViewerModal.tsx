@@ -4,25 +4,58 @@ import { X, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { MermaidDiagram } from './MermaidDiagram';
+import { toast } from '../store/toastStore';
+import { useThemeStore } from '../store/themeStore';
 
-const cafeLight = {
-  ...oneLight,
-  'pre[class*="language-"]': {
-    ...oneLight['pre[class*="language-"]'],
-    background: '#F9F7F5',
-    border: 'none',
-    boxShadow: 'none',
-    margin: 0,
-  },
-  'code[class*="language-"]': {
-    ...oneLight['code[class*="language-"]'],
-    background: 'transparent',
-    border: 'none',
-    textShadow: 'none',
-  },
+type SyntaxPalette = {
+  comment: string; keyword: string; string: string; number: string;
+  fn: string; type: string; punct: string;
 };
+
+// Warm token hues: terracotta/caramel/sage on light, softer glow on espresso.
+const LIGHT_PALETTE: SyntaxPalette = {
+  comment: '#A69485', keyword: '#9A4A2B', string: '#6B7A3A', number: '#B26A1E',
+  fn: '#7A4E2D', type: '#8A5A78', punct: '#8C7B6D',
+};
+const DARK_PALETTE: SyntaxPalette = {
+  comment: '#8A7767', keyword: '#E39A6B', string: '#B5C47A', number: '#E8B36A',
+  fn: '#EBC8A0', type: '#D3A3C4', punct: '#A8927F',
+};
+
+function makeSyntaxTheme(p: SyntaxPalette, padded: boolean) {
+  const tok = (color: string, extra: Record<string, string> = {}) => ({ color, ...extra });
+  return {
+    'pre[class*="language-"]': {
+      color: 'rgb(var(--cafe-text))',
+      background: 'rgb(var(--code-bg))',
+      fontFamily: 'inherit',
+      textAlign: 'left', whiteSpace: 'pre', wordSpacing: 'normal', wordBreak: 'normal',
+      lineHeight: '1.6', tabSize: 2, hyphens: 'none',
+      padding: padded ? '1em' : '1em 0', margin: 0, overflow: 'auto',
+      border: 'none', boxShadow: 'none',
+    },
+    'code[class*="language-"]': {
+      color: 'rgb(var(--cafe-text))', background: 'transparent',
+      fontFamily: 'inherit', textShadow: 'none', border: 'none',
+    },
+    comment: tok(p.comment, { fontStyle: 'italic' }),
+    prolog: tok(p.comment), doctype: tok(p.comment), cdata: tok(p.comment),
+    punctuation: tok(p.punct),
+    operator: tok(p.punct),
+    property: tok(p.fn), tag: tok(p.keyword), boolean: tok(p.number), number: tok(p.number),
+    constant: tok(p.number), symbol: tok(p.number), deleted: tok(p.keyword),
+    selector: tok(p.string), 'attr-name': tok(p.number), string: tok(p.string),
+    char: tok(p.string), builtin: tok(p.type), inserted: tok(p.string),
+    'attr-value': tok(p.string), keyword: tok(p.keyword), atrule: tok(p.keyword),
+    function: tok(p.fn), 'class-name': tok(p.type), regex: tok(p.number),
+    important: tok(p.keyword, { fontWeight: 'bold' }), variable: tok(p.type),
+    bold: { fontWeight: 'bold' }, italic: { fontStyle: 'italic' },
+  } as Record<string, React.CSSProperties>;
+}
+
+const cafeLight = makeSyntaxTheme(LIGHT_PALETTE, true);
+const cafeDark = makeSyntaxTheme(DARK_PALETTE, true);
 
 function getLanguage(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
@@ -49,6 +82,9 @@ export function FileViewerModal({ path, onClose }: Props) {
   const [matchIndex, setMatchIndex] = useState(0);
   const [searchVisible, setSearchVisible] = useState(false);
 
+  const theme = useThemeStore((s) => s.theme);
+  const syntaxTheme = theme === 'dark' ? cafeDark : cafeLight;
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +94,7 @@ export function FileViewerModal({ path, onClose }: Props) {
   useEffect(() => {
     invoke<string>('read_file', { path })
       .then(setContent)
-      .catch((e) => setError(String(e)));
+      .catch((e) => { setError(String(e)); toast('Failed to open file', 'error'); });
   }, [path]);
 
   useEffect(() => {
@@ -135,10 +171,10 @@ export function FileViewerModal({ path, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm animate-fade-in"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex flex-col bg-cafe-surface border border-cafe-border rounded-xl shadow-2xl w-[70vw] h-[75vh] max-w-4xl overflow-hidden">
+      <div className="flex flex-col bg-cafe-surface border border-cafe-border rounded-xl shadow-cafe-lg animate-scale-in w-[70vw] h-[75vh] max-w-4xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-cafe-border shrink-0 bg-cafe-hover">
           <span className="text-xs font-mono text-cafe-text truncate">{filename}</span>
@@ -158,7 +194,7 @@ export function FileViewerModal({ path, onClose }: Props) {
             >
               <Search size={14} />
             </button>
-            <button onClick={onClose} className="text-cafe-border hover:text-cafe-muted transition-colors">
+            <button onClick={onClose} className="text-cafe-border hover:text-cafe-muted transition-colors" title="Close (Esc)">
               <X size={15} />
             </button>
           </div>
@@ -211,7 +247,11 @@ export function FileViewerModal({ path, onClose }: Props) {
           {error ? (
             <div className="p-4 text-xs text-cafe-danger">{error}</div>
           ) : content === null ? (
-            <div className="p-4 text-xs text-cafe-border">Loading...</div>
+            <div className="p-4 space-y-2.5 animate-fade-in">
+              {[80, 55, 70, 40, 90, 60, 75, 35, 65, 50].map((w, i) => (
+                <div key={i} className="skeleton h-3.5 rounded" style={{ width: `${w}%` }} />
+              ))}
+            </div>
           ) : isMarkdown ? (
             <div className="p-6 max-w-none">
               <ReactMarkdown
@@ -235,8 +275,8 @@ export function FileViewerModal({ path, onClose }: Props) {
                     return match ? (
                       <SyntaxHighlighter
                         language={match[1]}
-                        style={cafeLight}
-                        customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px', background: '#EDE8E3' }}
+                        style={syntaxTheme}
+                        customStyle={{ margin: 0, fontSize: '12px', borderRadius: '8px', background: 'rgb(var(--code-bg))' }}
                       >
                         {String(children).replace(/\n$/, '')}
                       </SyntaxHighlighter>
@@ -262,10 +302,10 @@ export function FileViewerModal({ path, onClose }: Props) {
           ) : (
             <SyntaxHighlighter
               language={getLanguage(filename)}
-              style={cafeLight}
-              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0, background: '#F9F7F5' }}
+              style={syntaxTheme}
+              customStyle={{ margin: 0, fontSize: '12px', lineHeight: '1.6', borderRadius: 0, background: 'rgb(var(--code-bg))' }}
               showLineNumbers
-              lineNumberStyle={{ color: '#D4C9BF', minWidth: '2.5em' }}
+              lineNumberStyle={{ color: 'rgb(var(--cafe-muted) / 0.6)', minWidth: '2.5em' }}
               wrapLines
               lineProps={(lineNumber) => {
                 if (!matchLineSet.has(lineNumber)) return {};
@@ -273,8 +313,8 @@ export function FileViewerModal({ path, onClose }: Props) {
                   style: {
                     display: 'block',
                     backgroundColor: lineNumber === currentLine
-                      ? 'rgba(93, 68, 50, 0.25)'
-                      : 'rgba(93, 68, 50, 0.1)',
+                      ? 'rgb(var(--cafe-primary) / 0.28)'
+                      : 'rgb(var(--cafe-primary) / 0.12)',
                   },
                 };
               }}

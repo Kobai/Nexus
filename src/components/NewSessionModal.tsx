@@ -88,8 +88,8 @@ export function NewSessionModal({ projectId, onClose }: Props) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm">
-      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[480px] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/30 backdrop-blur-sm animate-fade-in">
+      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[480px] shadow-cafe-lg animate-scale-in">
         <h2 className="text-cafe-text font-semibold text-sm mb-4">New Session</h2>
 
         <div className="space-y-3">
@@ -153,7 +153,7 @@ export function NewSessionModal({ projectId, onClose }: Props) {
                       size={13}
                       className={pulling ? 'animate-spin' : ''}
                       strokeWidth={pullStatus === 'success' ? 2.5 : 2}
-                      color={pullStatus === 'success' ? 'var(--color-cafe-success, #16a34a)' : undefined}
+                      color={pullStatus === 'success' ? 'rgb(var(--cafe-success))' : undefined}
                     />
                   </button>
                 </div>

@@ -19,8 +19,8 @@ interface Props {
 
 export function UpdateModal({ phase, onUpdateNow, onRestartNow, onRetry, onClose }: Props) {
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm">
-      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[420px] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/30 backdrop-blur-sm animate-fade-in">
+      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[420px] shadow-cafe-lg animate-scale-in">
         <h2 className="text-cafe-text font-semibold text-sm mb-4">Software Update</h2>
 
         {phase.kind === 'checking' && (

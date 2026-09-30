@@ -12,7 +12,9 @@ import {
   Loader2,
   Globe,
   Key,
+  FileQuestion,
 } from 'lucide-react';
+import { toast } from '../store/toastStore';
 
 interface EnvVar {
   key: string;
@@ -68,9 +70,9 @@ type JsonTokenType = 'key' | 'string' | 'number' | 'boolean' | 'null' | 'punct';
 
 const JSON_TOKEN_COLORS: Record<JsonTokenType, string> = {
   key: 'text-cafe-primary font-semibold',
-  string: 'text-emerald-700',
-  number: 'text-blue-700',
-  boolean: 'text-purple-700',
+  string: 'text-cafe-success',
+  number: 'text-cafe-warning',
+  boolean: 'text-cafe-danger',
   null: 'text-cafe-muted italic',
   punct: 'text-cafe-muted',
 };
@@ -140,13 +142,13 @@ function JsonBody({ body }: { body: string }) {
 }
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'bg-green-100 text-green-700 border-green-300',
-  POST: 'bg-blue-100 text-blue-700 border-blue-300',
-  PUT: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-  DELETE: 'bg-red-100 text-red-700 border-red-300',
-  PATCH: 'bg-purple-100 text-purple-700 border-purple-300',
-  OPTIONS: 'bg-gray-100 text-gray-700 border-gray-300',
-  HEAD: 'bg-indigo-100 text-indigo-700 border-indigo-300',
+  GET: 'bg-cafe-success/10 text-cafe-success border-cafe-success/30',
+  POST: 'bg-cafe-primary/10 text-cafe-primary border-cafe-primary/30',
+  PUT: 'bg-cafe-warning/10 text-cafe-warning border-cafe-warning/30',
+  DELETE: 'bg-cafe-danger/10 text-cafe-danger border-cafe-danger/30',
+  PATCH: 'bg-cafe-warning/20 text-cafe-warning border-cafe-warning/40',
+  OPTIONS: 'bg-cafe-muted/10 text-cafe-muted border-cafe-muted/30',
+  HEAD: 'bg-cafe-primary/20 text-cafe-primary border-cafe-primary/40',
 };
 
 export function ApiPanel({ projectId }: Props) {
@@ -321,8 +323,10 @@ export function ApiPanel({ projectId }: Props) {
       const response = await invoke<ApiCallResponse>('call_api', { request });
       setResponse(response);
       setActiveView('response');
+      toast(`${response.status} ${endpoint.method} ${endpoint.path}`, response.status < 400 ? 'success' : 'error');
     } catch (e: any) {
       setEndpointError(e.message || 'Failed to call endpoint');
+      toast('Request failed', 'error');
     } finally {
       setRunningEndpoint(null);
     }
@@ -362,15 +366,26 @@ export function ApiPanel({ projectId }: Props) {
       </div>
 
       {/* Content */}
-      {!specData && !specLoading ? (
+      {specLoading && !specData ? (
+        <div className="flex-1 p-3 space-y-2.5 animate-fade-in">
+          {[45, 80, 60, 70, 50, 85, 55].map((w, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="skeleton h-4 w-9 rounded" />
+              <div className="skeleton h-4 rounded" style={{ width: `${w}%` }} />
+            </div>
+          ))}
+        </div>
+      ) : !specData && !specLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Globe size={32} className="text-cafe-border mx-auto mb-3" />
-            <p className="text-cafe-muted text-xs text-center">No OpenAPI spec found in this project.</p>
-            <p className="text-cafe-border text-[10px] text-center mt-1">Add openapi.json or swagger.json to your repo</p>
+          <div className="text-center flex flex-col items-center animate-fade-in">
+            <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+              <Globe size={20} className="text-cafe-muted" />
+            </div>
+            <p className="text-cafe-text text-xs font-semibold">No OpenAPI spec found</p>
+            <p className="text-cafe-muted text-[11px] mt-1">Add openapi.json or swagger.json to your repo</p>
             <button
               onClick={handleRefresh}
-              className="mt-3 px-3 py-1 bg-cafe-primary text-white text-xs rounded-md hover:bg-cafe-primary/80"
+              className="mt-3 px-3 py-1 bg-cafe-primary text-cafe-surface text-xs rounded-md hover:bg-cafe-primary/80 transition-colors"
             >
               Search for specs
             </button>
@@ -416,7 +431,7 @@ export function ApiPanel({ projectId }: Props) {
                       className="w-full bg-cafe-hover border border-cafe-border rounded-md pl-7 pr-2 py-1 text-xs text-cafe-text placeholder:text-cafe-border outline-none focus:border-cafe-primary transition-colors"
                     />
                     {query && (
-                      <button onClick={() => setQuery('')} className="absolute right-2 text-cafe-border hover:text-cafe-muted">
+                      <button onClick={() => setQuery('')} className="absolute right-2 text-cafe-border hover:text-cafe-muted transition-colors">
                         <X size={10} />
                       </button>
                     )}
@@ -432,7 +447,7 @@ export function ApiPanel({ projectId }: Props) {
                         onClick={() => setActiveEnv(envName)}
                         className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                           activeEnv === envName
-                            ? 'bg-cafe-primary text-white'
+                            ? 'bg-cafe-primary text-cafe-surface'
                             : 'bg-cafe-hover text-cafe-muted hover:text-cafe-text'
                         }`}
                       >
@@ -446,7 +461,7 @@ export function ApiPanel({ projectId }: Props) {
                   <button
                     onClick={() => setSelectedTag('All')}
                     className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                      selectedTag === 'All' ? 'bg-cafe-primary text-white' : 'bg-cafe-hover text-cafe-muted hover:text-cafe-text'
+                      selectedTag === 'All' ? 'bg-cafe-primary text-cafe-surface' : 'bg-cafe-hover text-cafe-muted hover:text-cafe-text'
                     }`}
                   >
                     All
@@ -456,7 +471,7 @@ export function ApiPanel({ projectId }: Props) {
                       key={tag}
                       onClick={() => setSelectedTag(tag)}
                       className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                        selectedTag === tag ? 'bg-cafe-primary text-white' : 'bg-cafe-hover text-cafe-muted hover:text-cafe-text'
+                        selectedTag === tag ? 'bg-cafe-primary text-cafe-surface' : 'bg-cafe-hover text-cafe-muted hover:text-cafe-text'
                       }`}
                     >
                       {tag}
@@ -466,7 +481,13 @@ export function ApiPanel({ projectId }: Props) {
 
                 <div className="divide-y divide-cafe-border/50">
                   {filteredEndpoints.length === 0 && (
-                    <div className="px-3 py-4 text-xs text-cafe-border italic text-center">No endpoints found</div>
+                    <div className="flex flex-col items-center text-center py-10 animate-fade-in">
+                      <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+                        <FileQuestion size={20} className="text-cafe-muted" />
+                      </div>
+                      <p className="text-xs font-semibold text-cafe-text">No endpoints found</p>
+                      <p className="text-[11px] text-cafe-muted mt-1">Try a different search or tag</p>
+                    </div>
                   )}
                   {filteredEndpoints.map((endpoint, i) => (
                     <div key={`${endpoint.method}-${endpoint.path}-${i}`}>
@@ -498,10 +519,10 @@ export function ApiPanel({ projectId }: Props) {
                                 {endpoint.parameters.map((param, pi) => (
                                   <div key={pi} className="flex items-center gap-1.5 text-[10px]">
                                     <span className={`px-1 py-0.5 rounded text-[8px] font-medium ${
-                                      param.param_in === 'path' ? 'bg-pink-100 text-pink-700' :
-                                      param.param_in === 'query' ? 'bg-blue-100 text-blue-700' :
-                                      param.param_in === 'header' ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-gray-100 text-gray-700'
+                                      param.param_in === 'path' ? 'bg-cafe-danger/10 text-cafe-danger' :
+                                      param.param_in === 'query' ? 'bg-cafe-primary/10 text-cafe-primary' :
+                                      param.param_in === 'header' ? 'bg-cafe-warning/10 text-cafe-warning' :
+                                      'bg-cafe-muted/10 text-cafe-muted'
                                     }`}>
                                       {param.param_in}
                                     </span>
@@ -534,7 +555,7 @@ export function ApiPanel({ projectId }: Props) {
                             onClick={() => runEndpoint(endpoint)}
                             disabled={runningEndpoint === endpoint.operation_id || envLoading}
                             title={envLoading ? 'Loading environment variables...' : undefined}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cafe-primary text-white text-xs rounded-md hover:bg-cafe-primary/80 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cafe-primary text-cafe-surface text-xs rounded-md hover:bg-cafe-primary/80 transition-colors disabled:opacity-50"
                           >
                             {runningEndpoint === endpoint.operation_id ? (
                               <Loader2 size={10} className="animate-spin" />
@@ -554,12 +575,18 @@ export function ApiPanel({ projectId }: Props) {
             {activeView === 'env' && (
               <div>
                 {envLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 size={16} className="text-cafe-primary animate-spin" />
+                  <div className="p-3 space-y-2.5 animate-fade-in">
+                    {[55, 75, 40, 65].map((w, i) => (
+                      <div key={i} className="skeleton h-4 rounded" style={{ width: `${w}%` }} />
+                    ))}
                   </div>
                 ) : Object.keys(envGroups).length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-cafe-border italic text-center">
-                    No .env file found in this project.
+                  <div className="flex flex-col items-center text-center py-10 animate-fade-in">
+                    <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+                      <Key size={20} className="text-cafe-muted" />
+                    </div>
+                    <p className="text-xs font-semibold text-cafe-text">No .env file found</p>
+                    <p className="text-[11px] text-cafe-muted mt-1">Add one to this project to use variables</p>
                   </div>
                 ) : (
                   <>
@@ -599,11 +626,11 @@ export function ApiPanel({ projectId }: Props) {
             {activeView === 'response' && response && (
               <div className="flex flex-col h-full">
                 <div className={`flex items-center justify-between px-3 py-2 border-b border-cafe-border shrink-0 ${
-                  response.status < 300 ? 'bg-green-50' : 'bg-red-50'
+                  response.status < 300 ? 'bg-cafe-success/10' : 'bg-cafe-danger/10'
                 }`}>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      response.status < 300 ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                      response.status < 300 ? 'bg-cafe-success/20 text-cafe-success' : 'bg-cafe-danger/20 text-cafe-danger'
                     }`}>
                       {response.status}
                     </span>
@@ -611,7 +638,7 @@ export function ApiPanel({ projectId }: Props) {
                   </div>
                   <button
                     onClick={() => { setActiveView('endpoints'); setResponse(null); }}
-                    className="text-cafe-border hover:text-cafe-text"
+                    className="text-cafe-border hover:text-cafe-text transition-colors"
                   >
                     <X size={11} />
                   </button>
@@ -630,7 +657,7 @@ export function ApiPanel({ projectId }: Props) {
                 <p className="text-cafe-danger text-xs text-center">{endpointError}</p>
                 <button
                   onClick={() => setActiveView('endpoints')}
-                  className="mt-3 px-3 py-1 bg-cafe-primary text-white text-xs rounded-md hover:bg-cafe-primary/80"
+                  className="mt-3 px-3 py-1 bg-cafe-primary text-cafe-surface text-xs rounded-md hover:bg-cafe-primary/80"
                 >
                   Back to Endpoints
                 </button>

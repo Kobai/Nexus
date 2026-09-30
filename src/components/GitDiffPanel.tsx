@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, memo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { RefreshCw, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronRight, X, GitCommitHorizontal } from 'lucide-react';
+import { toast } from '../store/toastStore';
 
 const diffCache = new Map<string, { data: DiffFile[] }>();
 
@@ -121,21 +122,26 @@ const FileSection = memo(function FileSection({ file }: { file: DiffFile }) {
               return (
                 <div
                   key={li}
-                  className={`flex ${
-                    isAdd ? 'bg-green-50' : isRemove ? 'bg-red-50' : 'bg-white'
-                  }`}
+                  className="flex"
+                  style={{
+                    backgroundColor: isAdd
+                      ? 'rgb(var(--diff-add-bg))'
+                      : isRemove
+                        ? 'rgb(var(--diff-remove-bg))'
+                        : 'transparent',
+                  }}
                 >
                   <span className={`select-none w-8 shrink-0 text-right pr-2 border-r text-[10px] ${
-                    isAdd ? 'text-green-400 border-green-100' :
-                    isRemove ? 'text-red-300 border-red-100' :
+                    isAdd ? 'text-cafe-success/60 border-cafe-success/20' :
+                    isRemove ? 'text-cafe-danger/60 border-cafe-danger/20' :
                     'text-cafe-border border-cafe-border'
                   }`}>
                     {line.lineNo}
                   </span>
                   <span className={`pl-2 pr-3 whitespace-pre-wrap break-all ${
-                    isAdd ? 'text-green-800' : isRemove ? 'text-red-700' : 'text-cafe-muted'
+                    isAdd ? 'text-cafe-text' : isRemove ? 'text-cafe-text' : 'text-cafe-muted'
                   }`}>
-                    <span className={`mr-1 ${isAdd ? 'text-green-400' : isRemove ? 'text-red-300' : 'opacity-0'}`}>
+                    <span className={`mr-1 ${isAdd ? 'text-cafe-success' : isRemove ? 'text-cafe-danger' : 'opacity-0'}`}>
                       {isAdd ? '+' : isRemove ? '−' : '+'}
                     </span>
                     {line.content}
@@ -166,6 +172,7 @@ export function GitDiffPanel({ projectId }: Props) {
       setFiles(parsed);
     } catch (e) {
       setError(String(e));
+      toast('Failed to load changes', 'error');
     } finally {
       setLoading(false);
     }
@@ -236,11 +243,25 @@ export function GitDiffPanel({ projectId }: Props) {
       </div>
 
       <div className="flex-1 overflow-auto p-3">
-        {loading && <div className="text-xs text-cafe-border py-2">Loading...</div>}
+        {loading && (
+          <div className="space-y-2 animate-fade-in">
+            {[70, 45, 85, 55, 65].map((w, i) => (
+              <div key={i} className="skeleton h-4 rounded" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+        )}
         {error && <div className="text-xs text-cafe-danger py-2">{error}</div>}
         {!loading && !error && visibleFiles !== null && (
           visibleFiles!.length === 0
-            ? <div className="text-xs text-cafe-border py-2 italic">{query ? 'No files match' : 'No changes'}</div>
+            ? (
+              <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-cafe-hover flex items-center justify-center mb-3">
+                  <GitCommitHorizontal size={20} className="text-cafe-muted" />
+                </div>
+                <p className="text-xs font-semibold text-cafe-text">{query ? 'No files match' : 'No changes'}</p>
+                <p className="text-[11px] text-cafe-muted mt-1">{query ? 'Try a different filename' : 'Your working tree is clean'}</p>
+              </div>
+            )
             : visibleFiles!.map((f, i) => <FileSection key={`${f.filename}-${i}`} file={f} />)
         )}
       </div>

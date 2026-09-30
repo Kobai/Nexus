@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -18,6 +19,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTabStore } from '../store/tabStore';
 import { useTerminalStore } from '../store/terminalStore';
 import { useAttentionStore } from '../store/attentionStore';
+import { useActivityStore } from '../store/activityStore';
+import { StatusDot, statusOf } from './StatusDot';
 import { Tab } from '../types';
 
 const EMPTY_TABS: Tab[] = [];
@@ -26,12 +29,14 @@ interface TabItemProps {
   tab: Tab;
   isActive: boolean;
   needsAttention: boolean;
+  running: boolean;
+  index: number;
   onActivate: () => void;
   onClose: () => void;
   onRename: (title: string) => void;
 }
 
-function TabItem({ tab, isActive, needsAttention, onActivate, onClose, onRename }: TabItemProps) {
+function TabItem({ tab, isActive, needsAttention, running, index, onActivate, onClose, onRename }: TabItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: tab.id });
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(tab.title);
@@ -55,12 +60,19 @@ function TabItem({ tab, isActive, needsAttention, onActivate, onClose, onRename 
       {...attributes}
       {...listeners}
       onClick={onActivate}
-      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium select-none cursor-pointer border-b-2 rounded-t-md transition-colors whitespace-nowrap ${
+      title={index < 9 ? `${tab.title}  (⌘${index + 1})` : tab.title}
+      className={`group relative flex items-center gap-2 px-4 py-2 mt-1.5 text-xs font-medium select-none cursor-pointer rounded-t-lg transition-all duration-150 whitespace-nowrap animate-tab-in ${
         isActive
-          ? 'border-b-cafe-primary text-cafe-primary bg-cafe-surface'
-          : 'border-b-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
+          ? 'bg-cafe-surface text-cafe-primary font-semibold shadow-cafe-sm -mb-px z-10'
+          : 'text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
       }`}
     >
+      <span
+        className={`absolute left-2 right-2 top-0 h-[2px] rounded-full bg-cafe-primary origin-center transition-transform duration-200 ${
+          isActive ? 'scale-x-100' : 'scale-x-0'
+        }`}
+      />
+      <StatusDot status={statusOf(needsAttention, running)} />
       {editing ? (
         <input
           className="bg-transparent outline-none text-cafe-text w-20 font-sans text-xs"
@@ -78,17 +90,15 @@ function TabItem({ tab, isActive, needsAttention, onActivate, onClose, onRename 
           {tab.title}
         </span>
       )}
-      {needsAttention && (
-        <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0 animate-blink" />
-      )}
       <button
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className={`ml-0.5 leading-none transition-colors ${
-          isActive ? 'text-cafe-muted hover:text-cafe-danger' : 'text-cafe-border hover:text-cafe-danger'
+        className={`ml-0.5 p-0.5 rounded leading-none transition-all hover:bg-cafe-danger/10 hover:text-cafe-danger ${
+          isActive ? 'text-cafe-muted' : 'text-transparent group-hover:text-cafe-muted'
         }`}
+        title="Close tab (⌘W)"
       >
-        ×
+        <X size={12} />
       </button>
     </div>
   );
@@ -105,6 +115,23 @@ export function TabBar({ sessionId }: Props) {
   const { renameTab, removeTab } = useTabStore();
   const unregisterTerminal = useTerminalStore((s) => s.unregisterTerminal);
   const attentionTabs = useAttentionStore((s) => s.tabs);
+  const runningTabs = useActivityStore((s) => s.running);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [fade, setFade] = useState({ left: false, right: false });
+
+  function updateFade() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setFade({
+      left: el.scrollLeft > 2,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }
+  useEffect(updateFade, [tabs.length]);
+  useEffect(() => {
+    window.addEventListener('resize', updateFade);
+    return () => window.removeEventListener('resize', updateFade);
+  }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -138,13 +165,24 @@ export function TabBar({ sessionId }: Props) {
   }
 
   return (
-    <div className="flex items-end bg-cafe-secondary border-b border-cafe-border overflow-x-auto shrink-0">
+    <div
+      ref={scrollRef}
+      onScroll={updateFade}
+      data-tauri-drag-region
+      className="flex items-end gap-0.5 px-1 bg-cafe-secondary border-b border-cafe-border overflow-x-auto shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{
+        maskImage: `linear-gradient(to right, ${fade.left ? 'transparent, #000 24px' : '#000, #000'}, ${fade.right ? '#000 calc(100% - 24px), transparent' : '#000, #000'})`,
+        WebkitMaskImage: `linear-gradient(to right, ${fade.left ? 'transparent, #000 24px' : '#000, #000'}, ${fade.right ? '#000 calc(100% - 24px), transparent' : '#000, #000'})`,
+      }}
+    >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-          {tabs.map((tab) => (
+          {tabs.map((tab, i) => (
             <TabItem
               key={tab.id}
               tab={tab}
+              index={i}
+              running={!!runningTabs[tab.id]}
               isActive={tab.id === activeTabId}
               needsAttention={!!attentionTabs[tab.id]}
               onActivate={() => setActiveTab(sessionId, tab.id)}
@@ -156,10 +194,10 @@ export function TabBar({ sessionId }: Props) {
       </DndContext>
       <button
         onClick={handleAddTab}
-        className="px-3 py-2 text-cafe-border hover:text-cafe-primary text-lg leading-none transition-colors"
-        title="New tab"
+        className="p-2 mb-0.5 rounded-md text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover transition-colors"
+        title="New tab (⌘T)"
       >
-        +
+        <Plus size={14} />
       </button>
     </div>
   );

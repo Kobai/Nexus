@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Folder, Trash2 } from 'lucide-react';
+import { Folder, FolderPlus, Trash2, Plus, Square, ChevronRight, PanelLeftClose, PanelLeftOpen, Moon, Sun } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -21,6 +21,10 @@ import { useSessionStore } from '../store/sessionStore';
 import { useTabStore } from '../store/tabStore';
 import { useTerminalStore } from '../store/terminalStore';
 import { useAttentionStore } from '../store/attentionStore';
+import { useActivityStore } from '../store/activityStore';
+import { useThemeStore } from '../store/themeStore';
+import { StatusDot, statusOf } from './StatusDot';
+import { EmptyState } from './EmptyState';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewSessionModal } from './NewSessionModal';
 import { AddProjectModal } from './AddProjectModal';
@@ -39,10 +43,12 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
   const removeTab = useTabStore((s) => s.removeTab);
   const unregisterTerminal = useTerminalStore((s) => s.unregisterTerminal);
   const attentionTabs = useAttentionStore((s) => s.tabs);
+  const runningTabs = useActivityStore((s) => s.running);
   const [confirmStop, setConfirmStop] = useState(false);
 
   const isActive = activeSessionId === session.id;
   const needsAttention = tabs.some((t) => attentionTabs[t.id]);
+  const isRunning = tabs.some((t) => runningTabs[t.id]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -70,25 +76,21 @@ function SessionItem({ session }: { session: Session; projectId?: string }) {
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center gap-2 pl-3 pr-2 py-1 mx-1 my-0.5 rounded-md cursor-pointer text-xs transition-colors group ${
+        className={`flex items-center gap-2 pl-2.5 pr-2 py-1 mx-1 my-0.5 rounded-md cursor-pointer text-xs transition-all duration-150 group border-l-2 ${
           isActive
-            ? 'bg-cafe-primary/10 text-cafe-primary font-semibold'
-            : 'text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
+            ? 'bg-cafe-primary/10 border-cafe-primary text-cafe-primary font-semibold'
+            : 'border-transparent text-cafe-muted hover:text-cafe-text hover:bg-cafe-hover'
         }`}
         onClick={() => setActiveSession(session.id)}
       >
-        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-          needsAttention
-            ? 'bg-cafe-danger animate-blink'
-            : isActive ? 'bg-cafe-primary' : 'bg-cafe-border group-hover:bg-cafe-muted'
-        }`} />
+        <StatusDot status={statusOf(needsAttention, isRunning)} />
         <span className="truncate flex-1">{session.name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmStop(true); }}
-          className="opacity-0 group-hover:opacity-100 text-cafe-danger hover:text-red-700 text-xs px-1 transition-colors"
+          className="opacity-0 group-hover:opacity-100 text-cafe-danger hover:bg-cafe-danger/10 rounded p-0.5 transition-all"
           title="Stop session"
         >
-          ■
+          <Square size={10} fill="currentColor" />
         </button>
       </div>
       {confirmStop && (
@@ -173,7 +175,7 @@ function ProjectItem({
       >
         <Folder size={16} />
         {needsAttention && (
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-cafe-danger animate-blink" />
+          <StatusDot status="waiting" className="absolute top-2 right-2" />
         )}
       </div>
     );
@@ -191,26 +193,24 @@ function ProjectItem({
           setContextMenu({ x: e.clientX, y: e.clientY });
         }}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
           <button
             onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
-            className="text-cafe-border hover:text-cafe-muted text-xs w-4 flex-shrink-0 transition-colors"
+            className="text-cafe-muted/70 hover:text-cafe-primary w-4 flex-shrink-0 transition-colors"
           >
-            {collapsed ? '▶' : '▼'}
+            <ChevronRight size={13} className={`transition-transform duration-150 ${collapsed ? '' : 'rotate-90'}`} />
           </button>
           <Folder size={14} className="text-cafe-primary/60 flex-shrink-0" />
           <span className="text-cafe-text text-xs font-semibold truncate tracking-wide uppercase">{project.name}</span>
-          {needsAttention && (
-            <span className="w-1.5 h-1.5 rounded-full bg-cafe-danger shrink-0 animate-blink" />
-          )}
+          {needsAttention && <StatusDot status="waiting" />}
         </div>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => { e.stopPropagation(); setShowNewSession(true); }}
-            className="text-cafe-primary hover:text-cafe-primary/70 text-base leading-none px-0.5 font-light"
+            className="text-cafe-primary hover:bg-cafe-primary/10 rounded p-0.5 transition-colors"
             title="New session"
           >
-            +
+            <Plus size={14} />
           </button>
         </div>
       </div>
@@ -224,7 +224,7 @@ function ProjectItem({
           />
           <div
             ref={contextMenuRef}
-            className="fixed z-50 bg-cafe-surface border border-cafe-border rounded-lg shadow-lg py-1 min-w-[160px]"
+            className="fixed z-50 bg-cafe-surface border border-cafe-border rounded-lg shadow-cafe-lg py-1 min-w-[160px] animate-scale-in"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
@@ -239,7 +239,7 @@ function ProjectItem({
       )}
 
       {!collapsed && (
-        <div className="mt-1 ml-5 border-l-2 border-cafe-border/50 pb-0.5">
+        <div className="mt-1 ml-5 pb-0.5 animate-fade-in">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSessionDragEnd}>
             <SortableContext items={sessions.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               {sessions.map((session) => (
@@ -248,7 +248,7 @@ function ProjectItem({
             </SortableContext>
           </DndContext>
           {sessions.length === 0 && (
-            <p className="pl-3 py-1 text-cafe-border text-xs italic">No sessions</p>
+            <p className="pl-3 py-0.5 text-cafe-muted/70 text-[11px] italic">No sessions</p>
           )}
         </div>
       )}
@@ -280,7 +280,9 @@ export function Sidebar() {
   });
   const [collapsed, setCollapsed] = useState(false);
   const [showAddProject, setShowAddProject] = useState(false);
-  const [_dragging, setDragging] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggle);
 
   const projects = useProjectStore((s) => s.projects);
   const reorderProjects = useProjectStore((s) => s.reorderProjects);
@@ -324,27 +326,33 @@ export function Sidebar() {
 
   return (
     <div
-      className="flex-shrink-0 bg-cafe-secondary border-r border-cafe-border flex flex-col relative"
-      style={{ width: effectiveWidth }}
+      className="flex-shrink-0 bg-cafe-secondary border-r border-cafe-border shadow-cafe-sm flex flex-col relative z-10 transition-[width] duration-200 ease-out"
+      style={{ width: effectiveWidth, transitionDuration: dragging ? '0ms' : undefined }}
     >
+      {/* Title bar drag strip (traffic lights sit over this on macOS) */}
+      <div data-tauri-drag-region className="h-7 shrink-0" />
+
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-cafe-border">
-        {!collapsed && (
-          <span className="text-cafe-primary text-xs font-semibold tracking-widest uppercase">
-            Projects
-          </span>
-        )}
+      <div className="flex items-center justify-between px-3 pb-2.5 pt-1 border-b border-cafe-border">
+        {!collapsed && <span className="label-caps !text-cafe-primary">Projects</span>}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="text-cafe-border hover:text-cafe-primary text-xs transition-colors ml-auto"
-          title={collapsed ? 'Expand' : 'Collapse'}
+          className="text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover rounded p-1 transition-colors ml-auto"
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? '▶' : '◀'}
+          {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </button>
       </div>
 
       {/* Project List */}
       <div className="flex-1 overflow-y-auto py-2">
+        {projects.length === 0 && !collapsed && (
+          <EmptyState
+            icon={FolderPlus}
+            title="No projects"
+            hint="Add a folder to start your first session."
+          />
+        )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
           <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             {projects.map((project) => (
@@ -354,15 +362,28 @@ export function Sidebar() {
         </DndContext>
       </div>
 
-      {/* Add Project */}
-      <div className="border-t border-cafe-border p-2">
+      {/* Footer actions */}
+      <div className="border-t border-cafe-border p-2 flex items-center gap-1">
         <button
           onClick={() => setShowAddProject(true)}
-          className="w-full text-cafe-muted hover:text-cafe-primary text-xs py-1.5 hover:bg-cafe-hover rounded-md transition-colors font-medium"
+          className="flex-1 flex items-center justify-center gap-1.5 text-cafe-muted hover:text-cafe-primary text-xs py-1.5 hover:bg-cafe-hover rounded-md transition-colors font-medium"
           title="Add project"
         >
-          {collapsed ? '+' : '+ Add Project'}
+          <Plus size={13} />
+          {!collapsed && 'Add Project'}
         </button>
+        {!collapsed && (
+          <>
+            <span className="kbd" title="Command palette">⌘K</span>
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-md text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover transition-colors"
+              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to espresso theme'}
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Update Checker */}
@@ -372,7 +393,9 @@ export function Sidebar() {
       {!collapsed && (
         <div
           onMouseDown={startResize}
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-cafe-primary/30 transition-colors"
+          className={`absolute -right-0.5 top-0 bottom-0 w-1 cursor-col-resize transition-colors hover:bg-cafe-primary/40 ${
+            dragging ? 'bg-cafe-primary/60' : ''
+          }`}
           style={{ userSelect: 'none' }}
         />
       )}

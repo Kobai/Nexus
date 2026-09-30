@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens — space-separated RGB channels so Tailwind alpha modifiers work. */
+:root {
+  --cafe-primary: 93 68 50;
+  --cafe-secondary: 233 227 221;
+  --cafe-surface: 249 247 245;
+  --cafe-text: 62 43 30;
+  --cafe-muted: 158 142 132;
+  --cafe-border: 212 201 191;
+  --cafe-hover: 237 232 227;
+  --cafe-active: 217 207 200;
+  --cafe-success: 22 163 74;
+  --cafe-warning: 217 119 6;
+  --cafe-danger: 220 38 38;
+
+  --shadow-sm: 0 1px 3px rgba(93, 68, 50, 0.08), 0 1px 2px rgba(93, 68, 50, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-md: 0 4px 12px rgba(93, 68, 50, 0.10), 0 2px 4px rgba(93, 68, 50, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-lg: 0 16px 40px rgba(62, 43, 30, 0.18), 0 4px 10px rgba(62, 43, 30, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  --diff-add-bg: 22 163 74 / 0.10;
+  --diff-remove-bg: 220 38 38 / 0.09;
+  --code-bg: 237 232 227;
+
+  color-scheme: light;
+}
+
+/* Espresso */
+:root.dark {
+  --cafe-primary: 214 178 146;
+  --cafe-secondary: 38 29 23;
+  --cafe-surface: 28 21 17;
+  --cafe-text: 240 230 220;
+  --cafe-muted: 158 139 124;
+  --cafe-border: 66 52 43;
+  --cafe-hover: 48 38 31;
+  --cafe-active: 64 50 41;
+  --cafe-success: 74 190 116;
+  --cafe-warning: 232 160 60;
+  --cafe-danger: 232 92 84;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --diff-add-bg: 74 190 116 / 0.14;
+  --diff-remove-bg: 232 92 84 / 0.14;
+  --code-bg: 38 29 23;
+
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -12,9 +62,38 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #F9F7F5;
-  color: #3E2B1E;
+  background: rgb(var(--cafe-surface));
+  color: rgb(var(--cafe-text));
   font-family: 'Poppins', system-ui, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth theme switches without animating everything on load */
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+::selection {
+  background: rgb(var(--cafe-primary) / 0.22);
+}
+
+/* Focus rings — warm, only for keyboard focus */
+button:focus-visible,
+[role='button']:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--cafe-surface)), 0 0 0 4px rgb(var(--cafe-primary) / 0.4);
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--cafe-primary) / 0.18);
+  border-color: rgb(var(--cafe-primary) / 0.5);
 }
 
 .xterm {
@@ -25,21 +104,74 @@ html, body, #root {
   overflow-y: auto !important;
 }
 
-/* Scrollbar styling for warm theme */
+/* Scrollbars: thin, fade in when the container is hovered */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #D4C9BF;
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 200ms;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--cafe-border));
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--cafe-muted));
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #9E8E84;
+/* Section label typography */
+.label-caps {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--cafe-muted));
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--cafe-hover)) 25%,
+    rgb(var(--cafe-active) / 0.7) 50%,
+    rgb(var(--cafe-hover)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Keyboard hint chip */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  height: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgb(var(--cafe-muted));
+  background: rgb(var(--cafe-hover));
+  border: 1px solid rgb(var(--cafe-border));
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+/* Drag region for the overlay title bar */
+.titlebar-inset {
+  padding-top: 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

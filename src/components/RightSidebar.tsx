@@ -23,12 +23,13 @@ function IconButton({ icon: Icon, active, onClick, title }: IconButtonProps) {
     <button
       onClick={onClick}
       title={title}
-      className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+      className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 ${
         active
-          ? 'text-cafe-primary bg-cafe-active'
+          ? 'text-cafe-primary bg-cafe-active shadow-cafe-sm'
           : 'text-cafe-muted hover:text-cafe-primary hover:bg-cafe-hover'
       }`}
     >
+      {active && <span className="absolute -left-2 top-1.5 bottom-1.5 w-0.5 rounded-full bg-cafe-primary" />}
       <Icon size={15} />
     </button>
   );
@@ -37,6 +38,7 @@ function IconButton({ icon: Icon, active, onClick, title }: IconButtonProps) {
 export function RightSidebar() {
   const [activePanel, setActivePanel] = useState<Panel | null>(null);
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
+  const [dragging, setDragging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStartX = useRef<number | null>(null);
   const dragStartWidth = useRef(DEFAULT_WIDTH);
@@ -60,6 +62,7 @@ export function RightSidebar() {
     e.preventDefault();
     dragStartX.current = e.clientX;
     dragStartWidth.current = panelWidth;
+    setDragging(true);
     if (panelRef.current) panelRef.current.style.transition = 'none';
 
     function onMouseMove(e: MouseEvent) {
@@ -76,6 +79,7 @@ export function RightSidebar() {
         setPanelWidth(next);
       }
       dragStartX.current = null;
+      setDragging(false);
       if (panelRef.current) panelRef.current.style.transition = '';
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
@@ -99,10 +103,14 @@ export function RightSidebar() {
         {expanded && (
           <div
             onMouseDown={onDragMouseDown}
-            className="absolute left-0 top-0 w-1 h-full cursor-col-resize z-10 hover:bg-cafe-primary/20 transition-colors"
-          />
+            className="group absolute left-0 top-0 w-2 h-full cursor-col-resize z-10 flex justify-start"
+          >
+            <div className={`w-px h-full transition-all duration-150 group-hover:w-0.5 group-hover:bg-cafe-primary/40 ${
+              dragging ? 'w-0.5 bg-cafe-primary/70' : 'bg-transparent'
+            }`} />
+          </div>
         )}
-        <div className="flex-1 overflow-hidden">
+        <div key={activePanel ?? 'none'} className="flex-1 overflow-hidden animate-slide-in-right">
           {activeProjectId && activePanel === 'git' && (
             <GitDiffPanel projectId={activeProjectId} />
           )}

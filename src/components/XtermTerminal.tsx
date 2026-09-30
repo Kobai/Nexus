@@ -6,34 +6,12 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { invoke } from '@tauri-apps/api/core';
 import { useTerminalStore } from '../store/terminalStore';
 import { useAttentionStore } from '../store/attentionStore';
+import { useThemeStore } from '../store/themeStore';
+import { terminalTheme, terminalBackground } from '../theme/terminalThemes';
 import { bytesToBase64 } from '../utils/base64';
 import '@xterm/xterm/css/xterm.css';
 
 const encoder = new TextEncoder();
-
-const cafeTheme = {
-  background: '#F9F7F5',
-  foreground: '#3E2B1E',
-  cursor: '#5D4432',
-  cursorAccent: '#F9F7F5',
-  selectionBackground: '#D9CFC8',
-  black: '#3E2B1E',
-  brightBlack: '#9E8E84',
-  red: '#DC2626',
-  brightRed: '#EF4444',
-  green: '#16A34A',
-  brightGreen: '#22C55E',
-  yellow: '#D97706',
-  brightYellow: '#F59E0B',
-  blue: '#2563EB',
-  brightBlue: '#3B82F6',
-  magenta: '#7C3AED',
-  brightMagenta: '#8B5CF6',
-  cyan: '#0891B2',
-  brightCyan: '#06B6D4',
-  white: '#7A6B61',
-  brightWhite: '#5D4432',
-};
 
 interface Props {
   tabId: string;
@@ -47,14 +25,15 @@ export function XtermTerminal({ tabId, visible }: Props) {
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const visibleRef = useRef(visible);
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const term = new Terminal({
       fontFamily: '"JetBrains Mono", monospace',
-      fontSize: 12,
-      theme: cafeTheme,
+      fontSize: 13,
+      theme: terminalTheme(useThemeStore.getState().theme),
       cursorBlink: visibleRef.current,
       allowTransparency: false,
     });
@@ -114,6 +93,9 @@ export function XtermTerminal({ tabId, visible }: Props) {
     }
   }, [visible, tabId]);
 
+  useEffect(() => {
+    if (termRef.current) termRef.current.options.theme = terminalTheme(theme);
+  }, [theme]);
 
   return (
     <div
@@ -122,9 +104,9 @@ export function XtermTerminal({ tabId, visible }: Props) {
         display: 'flex',
         height: '100%',
         width: '100%',
-        padding: '4px',
+        padding: '10px',
         boxSizing: 'border-box',
-        background: '#F9F7F5',
+        background: terminalBackground(theme),
       }}
     />
   );

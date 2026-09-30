@@ -4,12 +4,15 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { getVersion } from '@tauri-apps/api/app';
 import { Download } from 'lucide-react';
 import { UpdateModal, UpdatePhase } from './UpdateModal';
+import { toast } from '../store/toastStore';
 
 interface Props {
   collapsed: boolean;
 }
 
 const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+let announcedVersion: string | null = null;
 
 export function UpdateButton({ collapsed }: Props) {
   const [available, setAvailable] = useState<Update | null>(null);
@@ -22,7 +25,13 @@ export function UpdateButton({ collapsed }: Props) {
       const v = await getVersion();
       setCurrentVersion(v);
       const update = await check();
-      if (update?.available) setAvailable(update);
+      if (update?.available) {
+        setAvailable(update);
+        if (announcedVersion !== update.version) {
+          announcedVersion = update.version;
+          toast(`Update ${update.version} available`, 'info');
+        }
+      }
     } catch {
       // silently ignore background check failures
     }

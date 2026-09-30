@@ -6,11 +6,15 @@ import { useSessionStore } from './store/sessionStore';
 import { useTabStore } from './store/tabStore';
 import { useTerminalStore } from './store/terminalStore';
 import { useAttentionStore } from './store/attentionStore';
+import { useActivityStore } from './store/activityStore';
+import './store/themeStore';
 import { base64ToBytes } from './utils/base64';
 import { feedApprovalPromptDetector, clearApprovalPromptDetector } from './utils/approvalPromptDetector';
 import { Sidebar } from './components/Sidebar';
 import { MainWindow } from './components/MainWindow';
 import { RightSidebar } from './components/RightSidebar';
+import { Toaster } from './components/Toaster';
+import { CommandPalette } from './components/CommandPalette';
 import { AppData } from './types';
 
 export default function App() {
@@ -49,6 +53,7 @@ export default function App() {
     listen<{ tab_id: string; data: string }>('pty-output', ({ payload }) => {
       const bytes = base64ToBytes(payload.data);
       terminalStore.write(payload.tab_id, bytes);
+      useActivityStore.getState().noteOutput(payload.tab_id);
 
       // Flag the tab for attention only when Claude Code's own approval
       // prompt text shows up — not on generic terminal bells, which get
@@ -76,6 +81,7 @@ export default function App() {
       const sessionId = getSessionIdForTab(payload.tab_id);
       unregisterTerminal(payload.tab_id);
       clearApprovalPromptDetector(payload.tab_id);
+      useActivityStore.getState().forget(payload.tab_id);
 
       invoke('close_tab', { tabId: payload.tab_id }).catch(() => {});
       removeTab(payload.tab_id);
@@ -103,6 +109,8 @@ export default function App() {
       <Sidebar />
       <MainWindow />
       <RightSidebar />
+      <CommandPalette />
+      <Toaster />
     </div>
   );
 }

@@ -42,8 +42,8 @@ export function AddProjectModal({ onClose }: Props) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/20 backdrop-blur-sm">
-      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[400px] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-cafe-text/30 backdrop-blur-sm animate-fade-in">
+      <div className="bg-cafe-surface border border-cafe-border rounded-xl p-6 w-[400px] shadow-cafe-lg animate-scale-in">
         <h2 className="text-cafe-text font-semibold text-sm mb-1">Add Project</h2>
         <p className="text-cafe-muted text-xs mb-5">Select a git repository folder.</p>
         {error && <p className="text-cafe-danger text-xs mb-3">{error}</p>}
